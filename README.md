@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # IP 定位追踪平台
 
 企业内网 IP 定位追踪系统。自动采集终端设备的公网 IP 和地理位置，在管理后台展示设备在线状态、城市分布地图和历史轨迹。
@@ -16,114 +15,59 @@
 │   └── services/
 │       └── ip_location.py  # IP → 城市/经纬度查询
 ├── frontend/               # Vue 3 + Element Plus 前端
-│   ├── src/
-│   │   ├── views/          # Dashboard / Employees / History / Guide
-│   │   ├── api/            # Axios 请求封装
-│   │   └── router/         # Vue Router
-│   ├── vite.config.js
-│   └── package.json
+│   ├── src/                # 源码
+│   └── dist/               # 构建产物（已提交，可直接部署）
 ├── client/                 # Windows 客户端部署脚本
-│   └── deploy.ps1          # 一键安装计划任务（每 10 分钟上报）
-└── deploy/                 # 打包好的部署文件（可直接上传）
+├── install.sh              # ⭐ Linux 一键部署脚本
+└── deploy/                 # 旧版打包文件
 ```
 
-## 服务端部署（Linux）
+## 一键部署（Linux）
 
-### 1. 安装依赖
+在服务器上执行以下两条命令即可完成部署：
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/xihu-stack/-ip-tracker.git
+
+# 2. 一键部署（默认 8000 端口）
+cd -ip-tracker
+sudo bash install.sh
+```
+
+自定义端口：
+
+```bash
+sudo bash install.sh 9000    # 使用 9000 端口
+```
+
+脚本会自动完成：安装 Python → 复制文件 → 创建虚拟环境 → 安装依赖 → 配置 systemd 开机自启 → 启动服务。
+
+部署完成后访问 `http://<服务器IP>:8000` 即可看到管理界面。
+
+### 服务管理
+
+```bash
+systemctl status ip-tracker     # 查看状态
+systemctl restart ip-tracker    # 重启
+systemctl stop ip-tracker       # 停止
+journalctl -u ip-tracker -f     # 查看实时日志
+```
+
+### 防火墙放行
 
 ```bash
 # CentOS / RHEL
-sudo yum install -y python3 python3-pip
-
-# Ubuntu / Debian
-sudo apt update && sudo apt install -y python3 python3-pip python3-venv
-```
-
-### 2. 上传代码
-
-将 `server/` 和 `frontend/dist/` 上传到服务器：
-
-```bash
-# 创建目录
-sudo mkdir -p /opt/ip-tracker/frontend/dist
-
-# 上传（在本地执行）
-scp -r server/* root@<服务器IP>:/opt/ip-tracker/
-scp -r frontend/dist/* root@<服务器IP>:/opt/ip-tracker/frontend/dist/
-```
-
-### 3. 创建虚拟环境并安装 Python 依赖
-
-```bash
-cd /opt/ip-tracker
-python3 -m venv venv
-source venv/bin/activate
-pip install fastapi uvicorn sqlalchemy
-```
-
-### 4. 测试运行
-
-```bash
-cd /opt/ip-tracker
-source venv/bin/activate
-python main.py
-```
-
-默认监听 `0.0.0.0:8000`，浏览器访问 `http://<服务器IP>:8000`。
-
-### 5. 配置 systemd 开机自启
-
-创建服务文件：
-
-```bash
-sudo tee /etc/systemd/system/ip-tracker.service > /dev/null <<EOF
-[Unit]
-Description=IP Tracker Platform
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/ip-tracker
-ExecStart=/opt/ip-tracker/venv/bin/python main.py
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-```
-
-启动并设置开机自启：
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now ip-tracker
-sudo systemctl status ip-tracker
-```
-
-常用管理命令：
-
-```bash
-sudo systemctl restart ip-tracker   # 重启
-sudo systemctl stop ip-tracker      # 停止
-sudo journalctl -u ip-tracker -f    # 查看实时日志
-```
-
-### 6. 防火墙放行
-
-```bash
-# CentOS / RHEL (firewalld)
 sudo firewall-cmd --permanent --add-port=8000/tcp
 sudo firewall-cmd --reload
 
-# Ubuntu (ufw)
+# Ubuntu
 sudo ufw allow 8000/tcp
 ```
 
-## 前端构建
+## 前端重新构建
 
-如果需要修改前端后重新构建：
+如需修改前端代码后重新构建：
 
 ```bash
 cd frontend
@@ -131,21 +75,24 @@ npm install
 npm run build
 ```
 
-构建产物在 `frontend/dist/`，上传到服务器的 `/opt/ip-tracker/frontend/dist/` 即可。
-
-> 后端 `main.py` 会自动检测 `frontend/dist/` 目录，存在则以静态文件方式挂载，无需 Nginx。
+然后将 `frontend/dist/` 的内容更新到服务器 `/opt/ip-tracker/frontend/dist/` 并重启服务即可。
 
 ## Windows 客户端部署
 
-### 方式一：PowerShell 一键部署
+客户端需要在每台 Windows 电脑上安装，用于定时上报 IP。
 
-将 `client/deploy.ps1` 中的服务器地址改为你自己的：
+### 一键安装
+
+1. 从服务器下载脚本：`http://<服务器IP>:8000` 页面中有部署指引
+2. 或直接使用仓库中的 `client/deploy.ps1`
+
+修改 `deploy.ps1` 中的服务器地址：
 
 ```powershell
 $SERVER_URL = "http://<你的服务器IP>:8000/api/report"
 ```
 
-然后在目标机器上以管理员身份运行：
+以管理员身份运行：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File deploy.ps1
@@ -153,17 +100,8 @@ powershell -ExecutionPolicy Bypass -File deploy.ps1
 
 脚本会自动：
 - 安装上报脚本到 `C:\ProgramData\Company_Network\report.ps1`
-- 创建 Windows 计划任务，每 **10 分钟**自动上报 IP 和地理位置
+- 创建计划任务，每 **10 分钟**自动上报 IP 和地理位置
 - 立即执行一次上报
-
-### 方式二：手动创建计划任务
-
-```powershell
-# 1. 下载 report.ps1 到本地
-# 2. 修改其中的 $SERVER_URL
-# 3. 创建计划任务
-schtasks /Create /TN "IP_Tracker" /TR "powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File C:\path\to\report.ps1" /SC MINUTE /MO 10 /RU "SYSTEM" /F
-```
 
 ### 卸载客户端
 

@@ -12,8 +12,8 @@ venv/
 node_modules/
 frontend/node_modules/
 
-# Build output (keep frontend/dist for deployment)
-frontend/dist/
+# Build output — 保留 dist 用于部署
+# frontend/dist/
 
 # IDE
 .vscode/

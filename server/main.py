@@ -29,7 +29,10 @@ app.include_router(query.router)
 
 # 前端静态文件（生产环境）
 import os
-dist_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+_dir = os.path.dirname(os.path.abspath(__file__))
+dist_path = os.path.join(_dir, "..", "frontend", "dist")
+if not os.path.exists(dist_path):
+    dist_path = os.path.join(_dir, "..", "deploy", "frontend", "dist")
 if os.path.exists(dist_path):
     app.mount("/", StaticFiles(directory=dist_path, html=True), name="frontend")
 
