@@ -44,6 +44,15 @@ echo "[2/5] 准备应用文件..."
 # 获取脚本所在目录（支持直接克隆后运行）
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# 检测 main.py 的实际位置
+if [ -f "$SCRIPT_DIR/server/main.py" ]; then
+    # 仓库原始结构：server/main.py
+    MAIN_PY="$SCRIPT_DIR/server/main.py"
+else
+    # 复制后的结构：main.py 在根目录
+    MAIN_PY="$SCRIPT_DIR/main.py"
+fi
+
 # 如果已在目标目录运行，直接使用；否则复制过去
 if [ "$SCRIPT_DIR" = "$APP_DIR" ]; then
     echo "   → 已在 $APP_DIR，跳过复制"
@@ -59,7 +68,10 @@ else
     mkdir -p $APP_DIR/client
     cp -r "$SCRIPT_DIR/client/"* $APP_DIR/client/ 2>/dev/null || true
     echo "   → 文件已复制到 $APP_DIR"
+    MAIN_PY="$APP_DIR/main.py"
 fi
+
+echo "   → 入口文件: $MAIN_PY"
 
 # ---------- 3. 创建虚拟环境 & 安装依赖 ----------
 echo "[3/5] 安装 Python 依赖..."
@@ -81,8 +93,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=$APP_DIR
-ExecStart=$APP_DIR/venv/bin/python main.py
-Environment=PORT=$PORT
+ExecStart=$APP_DIR/venv/bin/python $MAIN_PY
 Restart=always
 RestartSec=5
 

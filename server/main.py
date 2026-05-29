@@ -30,10 +30,17 @@ app.include_router(query.router)
 # 前端静态文件（生产环境）
 import os
 _dir = os.path.dirname(os.path.abspath(__file__))
-dist_path = os.path.join(_dir, "..", "frontend", "dist")
-if not os.path.exists(dist_path):
-    dist_path = os.path.join(_dir, "..", "deploy", "frontend", "dist")
-if os.path.exists(dist_path):
+# 按优先级搜索：server目录的上级/frontend/dist → 当前工作目录/frontend/dist
+_candidates = [
+    os.path.join(_dir, "..", "frontend", "dist"),
+    os.path.join(os.getcwd(), "frontend", "dist"),
+]
+dist_path = None
+for p in _candidates:
+    if os.path.exists(p):
+        dist_path = p
+        break
+if dist_path:
     app.mount("/", StaticFiles(directory=dist_path, html=True), name="frontend")
 
 
