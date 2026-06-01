@@ -138,26 +138,26 @@ async function initMap(mapData) {
       roam: true,
       zoom: 1.2,
       center: [104, 36],
-      itemStyle: { areaColor: '#151d2e', borderColor: '#1a3050', borderWidth: 1 },
-      emphasis: { itemStyle: { areaColor: '#1a2a40' }, label: { show: true, color: '#00d4ff', fontSize: 10 } },
-      label: { show: true, color: 'rgba(0,212,255,0.25)', fontSize: 9 }
+      itemStyle: { areaColor: '#1e2d44', borderColor: '#2a4060', borderWidth: 1 },
+      emphasis: { itemStyle: { areaColor: '#243550' }, label: { show: true, color: '#00d4ff', fontSize: 10 } },
+      label: { show: true, color: 'rgba(120,180,220,0.4)', fontSize: 9 }
     },
     series: [
       {
         type: 'effectScatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize(val) { return Math.max(14, val[2] * 12) },
-        rippleEffect: { brushType: 'stroke', scale: 4, period: 3 },
-        itemStyle: { color: '#00d4ff', shadowBlur: 15, shadowColor: 'rgba(0,212,255,0.7)' },
-        label: { show: true, formatter: '{b}', position: 'right', color: '#00d4ff', fontSize: 12, fontWeight: 'bold' }
+        symbolSize(val) { return Math.max(16, val[2] * 14) },
+        rippleEffect: { brushType: 'stroke', scale: 5, period: 2.5 },
+        itemStyle: { color: '#00e5ff', shadowBlur: 20, shadowColor: 'rgba(0,229,255,0.8)' },
+        label: { show: true, formatter: '{b}', position: 'right', color: '#00e5ff', fontSize: 13, fontWeight: 'bold' }
       },
       {
         type: 'scatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize(val) { return Math.max(6, val[2] * 5) },
-        itemStyle: { color: '#00d4ff' },
+        symbolSize(val) { return Math.max(8, val[2] * 6) },
+        itemStyle: { color: '#00e5ff' },
         silent: true,
         z: 1
       }
@@ -206,8 +206,8 @@ onMounted(loadData)
 
 /* 统计卡片 */
 .stat-card {
-  background: #111827;
-  border: 1px solid rgba(0, 212, 255, 0.08);
+  background: #1a2234;
+  border: 1px solid rgba(0, 212, 255, 0.1);
   border-radius: 12px;
   padding: 24px;
   display: flex;
@@ -238,7 +238,7 @@ onMounted(loadData)
 }
 .stat-label {
   font-size: 13px;
-  color: #7aa0c0;
+  color: #8ab0d0;
   margin-top: 6px;
 }
 
