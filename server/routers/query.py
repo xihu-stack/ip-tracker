@@ -6,13 +6,14 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Employee, IpRecord
+from models import Employee, IpRecord, Admin
+from auth import get_current_admin
 
 router = APIRouter(prefix="/api", tags=["query"])
 
 
 @router.get("/dashboard")
-def dashboard(db: Session = Depends(get_db)):
+def dashboard(db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)):
     total_employees = db.query(func.count(Employee.id)).scalar()
     total_records = db.query(func.count(IpRecord.id)).scalar()
 
@@ -67,7 +68,8 @@ def list_employees(
     search: str = Query(default=""),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: Admin = Depends(get_current_admin)
 ):
     query = db.query(Employee)
     if search:
@@ -104,7 +106,8 @@ def employee_records(
     end_date: str = Query(default=""),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: Admin = Depends(get_current_admin)
 ):
     employee = db.query(Employee).filter(Employee.id == employee_id).first()
     if not employee:
@@ -134,7 +137,7 @@ def employee_records(
 
 
 @router.get("/map-data")
-def map_data(db: Session = Depends(get_db)):
+def map_data(db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)):
     """返回地图散点数据：按城市聚合，包含经纬度和设备数量"""
     # 获取每个员工最新一条记录
     from sqlalchemy import and_
@@ -184,7 +187,7 @@ class UpdateEmployeeRequest(BaseModel):
 
 
 @router.put("/employees/{employee_id}")
-def update_employee(employee_id: int, data: UpdateEmployeeRequest, db: Session = Depends(get_db)):
+def update_employee(employee_id: int, data: UpdateEmployeeRequest, db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)):
     employee = db.query(Employee).filter(Employee.id == employee_id).first()
     if not employee:
         raise HTTPException(status_code=404, detail="员工不存在")

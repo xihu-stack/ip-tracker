@@ -1,6 +1,6 @@
 <template>
   <el-container style="min-height: 100vh">
-    <el-aside width="220px" style="background: #304156">
+    <el-aside v-if="showSidebar" width="220px" style="background: #304156">
       <div style="height: 60px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; font-weight: bold; border-bottom: 1px solid #3a4a5e">
         IP 定位追踪
       </div>
@@ -24,7 +24,7 @@
       </el-menu>
     </el-aside>
     <el-container>
-      <el-main style="background: #f0f2f5; padding: 20px">
+      <el-main :style="showSidebar ? 'background: #f0f2f5; padding: 20px' : 'padding: 0'">
         <router-view />
       </el-main>
     </el-container>
@@ -37,4 +37,5 @@ import { useRoute } from 'vue-router'
 
 const route = useRoute()
 const currentPath = computed(() => route.path)
+const showSidebar = computed(() => route.path !== '/login')
 </script>

@@ -14,6 +14,7 @@ function Write-DeployLog($msg) {
 }
 Write-DeployLog "=== deploy.ps1 开始执行 ==="
 
+# 内网部署用 8000 端口，公网部署改为 9000 端口
 $SERVER_URL = "http://192.168.30.67:8000/api/report"
 $TASK_NAME = "Company_IP_Tracker"
 

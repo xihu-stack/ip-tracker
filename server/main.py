@@ -4,13 +4,26 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from database import engine, Base
-from routers import report, query
+from database import engine, Base, SessionLocal
+from models import Admin
+from auth import hash_password
+from routers import report, query, auth
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+
+    # 首次启动自动创建默认管理员
+    db = SessionLocal()
+    try:
+        if db.query(Admin).count() == 0:
+            db.add(Admin(username="admin", hashed_password=hash_password("admin123")))
+            db.commit()
+            print("[startup] 默认管理员已创建: admin / admin123")
+    finally:
+        db.close()
+
     yield
 
 
@@ -26,6 +39,7 @@ app.add_middleware(
 
 app.include_router(report.router)
 app.include_router(query.router)
+app.include_router(auth.router)
 
 # 前端静态文件（生产环境）
 import os

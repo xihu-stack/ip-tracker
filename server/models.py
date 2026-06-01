@@ -6,6 +6,15 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database import Base
 
 
+class Admin(Base):
+    __tablename__ = "admins"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+
 class Employee(Base):
     __tablename__ = "employees"
 

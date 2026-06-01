@@ -15,7 +15,8 @@ PYTHON=python3
 echo "============================================"
 echo "   IP 定位追踪平台 — 一键部署"
 echo "   安装目录: $APP_DIR"
-echo "   监听端口: $PORT"
+echo "   内网端口: $PORT（管理后台）"
+echo "   公网端口: 9000（仅上报接口）"
 echo "============================================"
 
 # ---------- 0. 检测是否 root ----------
@@ -26,30 +27,28 @@ fi
 
 # ---------- 1. 安装系统依赖 ----------
 echo ""
-echo "[1/5] 安装系统依赖..."
+echo "[1/6] 安装系统依赖..."
 if command -v apt-get &> /dev/null; then
     apt-get update -qq
-    apt-get install -y -qq python3 python3-pip python3-venv
+    apt-get install -y -qq python3 python3-pip python3-venv nginx libffi-dev gcc
 elif command -v yum &> /dev/null; then
-    yum install -y python3 python3-pip
+    yum install -y python3 python3-pip nginx libffi-devel gcc
 elif command -v dnf &> /dev/null; then
-    dnf install -y python3 python3-pip
+    dnf install -y python3 python3-pip nginx libffi-devel gcc
 else
-    echo "[警告] 未检测到包管理器，请手动安装 Python 3"
+    echo "[警告] 未检测到包管理器，请手动安装 Python 3 和 Nginx"
 fi
 
 # ---------- 2. 准备文件 ----------
-echo "[2/5] 准备应用文件..."
+echo "[2/6] 准备应用文件..."
 
 # 获取脚本所在目录（支持直接克隆后运行）
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # 检测 main.py 的实际位置
 if [ -f "$SCRIPT_DIR/server/main.py" ]; then
-    # 仓库原始结构：server/main.py
     MAIN_PY="$SCRIPT_DIR/server/main.py"
 else
-    # 复制后的结构：main.py 在根目录
     MAIN_PY="$SCRIPT_DIR/main.py"
 fi
 
@@ -74,16 +73,16 @@ fi
 echo "   → 入口文件: $MAIN_PY"
 
 # ---------- 3. 创建虚拟环境 & 安装依赖 ----------
-echo "[3/5] 安装 Python 依赖..."
+echo "[3/6] 安装 Python 依赖..."
 cd $APP_DIR
 $PYTHON -m venv venv
 source venv/bin/activate
 pip install --quiet --upgrade pip
-pip install --quiet fastapi uvicorn sqlalchemy
+pip install --quiet fastapi uvicorn sqlalchemy "python-jose[cryptography]" "passlib[bcrypt]" python-multipart
 echo "   → 依赖安装完成"
 
 # ---------- 4. 配置 systemd 服务 ----------
-echo "[4/5] 配置 systemd 服务..."
+echo "[4/6] 配置 systemd 服务..."
 cat > /etc/systemd/system/ip-tracker.service <<EOF
 [Unit]
 Description=IP Tracker Platform
@@ -106,8 +105,43 @@ systemctl enable ip-tracker
 
 echo "   → 服务已注册"
 
-# ---------- 5. 启动服务 ----------
-echo "[5/5] 启动服务..."
+# ---------- 5. 配置 Nginx 反向代理 ----------
+echo "[5/6] 配置 Nginx 反向代理..."
+cat > /etc/nginx/conf.d/ip-tracker.conf <<'NGINX'
+server {
+    listen 9000;
+    server_name _;
+
+    # 仅代理客户端上报接口
+    location /api/report {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 30s;
+    }
+
+    # 其他路径一律拒绝
+    location / {
+        return 403;
+    }
+}
+NGINX
+
+# 移除可能冲突的默认站点
+rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+
+# SELinux 放行（CentOS/RHEL）
+if command -v getenforce &> /dev/null && [ "$(getenforce)" != "Disabled" ]; then
+    setsebool -P httpd_can_network_connect 1 2>/dev/null || true
+fi
+
+nginx -t 2>/dev/null && systemctl enable nginx && systemctl restart nginx
+echo "   → Nginx 已配置: 公网 9000 端口仅放行 /api/report"
+
+# ---------- 6. 启动后端服务 ----------
+echo "[6/6] 启动后端服务..."
 systemctl restart ip-tracker
 sleep 2
 
@@ -116,17 +150,20 @@ if systemctl is-active --quiet ip-tracker; then
     echo "============================================"
     echo "   ✅ 部署成功！"
     echo ""
-    echo "   访问地址: http://<服务器IP>:$PORT"
+    echo "   管理后台 (内网): http://<服务器IP>:$PORT"
+    echo "   默认账号: admin / admin123"
+    echo ""
+    echo "   上报接口 (公网): http://<服务器IP>:9000/api/report"
+    echo "   公网其他路径均返回 403"
     echo ""
     echo "   常用命令:"
-    echo "     systemctl status ip-tracker    # 查看状态"
-    echo "     systemctl restart ip-tracker   # 重启"
-    echo "     systemctl stop ip-tracker      # 停止"
-    echo "     journalctl -u ip-tracker -f    # 查看日志"
+    echo "     systemctl status ip-tracker    # 查看后端状态"
+    echo "     systemctl status nginx         # 查看 Nginx 状态"
+    echo "     journalctl -u ip-tracker -f    # 查看后端日志"
     echo "============================================"
 else
     echo ""
-    echo "[错误] 服务启动失败，查看日志:"
+    echo "[错误] 后端服务启动失败，查看日志:"
     journalctl -u ip-tracker --no-pager -n 20
     exit 1
 fi
