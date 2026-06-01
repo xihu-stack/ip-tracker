@@ -111,6 +111,7 @@ cat > /etc/nginx/conf.d/ip-tracker.conf <<'NGINX'
 server {
     listen 9000;
     server_name _;
+    server_tokens off;
 
     # 仅代理客户端上报接口
     location /api/report {
@@ -122,9 +123,10 @@ server {
         proxy_read_timeout 30s;
     }
 
-    # 其他路径一律拒绝
+    # 其他路径返回干净页面
     location / {
-        return 403;
+        default_type application/json;
+        return 403 '{"status":"error","message":"Access Denied"}';
     }
 }
 NGINX
