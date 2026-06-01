@@ -129,9 +129,30 @@ server {
 }
 NGINX
 
-# 移除 Nginx 默认站点（监听 80 端口，我们不需要）
+# 移除 Nginx 默认站点，替换为干净配置（避免默认 80 端口冲突）
 rm -f /etc/nginx/conf.d/default.conf 2>/dev/null || true
 rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak 2>/dev/null || true
+cat > /etc/nginx/nginx.conf <<'NGINXMAIN'
+worker_processes auto;
+error_log /var/log/nginx/error.log;
+pid /run/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent"';
+
+    access_log  /var/log/nginx/access.log  main;
+    sendfile            on;
+    keepalive_timeout   65;
+    include /etc/nginx/conf.d/*.conf;
+}
+NGINXMAIN
 
 # SELinux 放行（CentOS/RHEL）
 if command -v getenforce &> /dev/null && [ "$(getenforce)" != "Disabled" ]; then
