@@ -55,7 +55,19 @@ for p in _candidates:
         dist_path = p
         break
 if dist_path:
-    app.mount("/", StaticFiles(directory=dist_path, html=True), name="frontend")
+    # SPA 兜底：非 API 路径返回 index.html，交给 Vue Router 处理
+    from starlette.responses import FileResponse
+
+    @app.get("/{path:path}")
+    async def serve_spa(path: str):
+        file_path = os.path.join(dist_path, path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(dist_path, "index.html"))
+
+    # 静态资源（JS/CSS/JSON 等文件）
+    app.mount("/assets", StaticFiles(directory=os.path.join(dist_path, "assets")), name="static")
+    app.mount("/china.json", StaticFiles(directory=dist_path, html=True), name="china")
 
 
 if __name__ == "__main__":
