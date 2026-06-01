@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Union
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -16,8 +16,18 @@ class ReportRequest(BaseModel):
     hostname: str
     ip: str
     city: Optional[str] = ""
-    lat: Optional[float] = None
-    lon: Optional[float] = None
+    lat: Optional[Union[float, str]] = None
+    lon: Optional[Union[float, str]] = None
+
+    @field_validator("lat", "lon", mode="before")
+    @classmethod
+    def parse_numeric(cls, v):
+        if v is None or v == "" or v == "None":
+            return None
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return None
 
 
 @router.post("/report")

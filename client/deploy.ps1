@@ -15,7 +15,7 @@ function Write-DeployLog($msg) {
 Write-DeployLog "=== deploy.ps1 开始执行 ==="
 
 # 内网部署用 8000 端口，公网部署改为 9000 端口
-$SERVER_URL = "http://192.168.30.67:8000/api/report"
+$SERVER_URL = "http://112.81.86.182:9000/api/report"
 $TASK_NAME = "Company_IP_Tracker"
 
 # 统一使用标准的公共本地路径，避免 SYSTEM 账户与普通用户 AppData 错位
@@ -75,9 +75,9 @@ $lines = @(
 [System.IO.File]::WriteAllLines($scriptPath, $lines, [System.Text.Encoding]::UTF8)
 Write-DeployLog "常驻脚本已写入: $scriptPath"
 
-# 2. 强力创建计划任务 (显式指定以 SYSTEM 凭据非交互运行，并增加 /V1 核心兼容，彻底防止卡死)
+# 2. 创建计划任务 (以 SYSTEM 账户非交互运行)
 schtasks /Delete /TN $TASK_NAME /F 2>$null | Out-Null
-$taskResult = schtasks /Create /TN $TASK_NAME /TR "powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$scriptPath`"" /SC MINUTE /MO 10 /RU "SYSTEM" /V1 /F 2>&1
+$taskResult = schtasks /Create /TN $TASK_NAME /TR "powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$scriptPath`"" /SC MINUTE /MO 10 /RU "SYSTEM" /F 2>&1
 Write-DeployLog "计划任务配置结果: $taskResult"
 
 # 3. 执行首次上报
