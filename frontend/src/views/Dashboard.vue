@@ -138,26 +138,26 @@ async function initMap(mapData) {
       roam: true,
       zoom: 1.2,
       center: [104, 36],
-      itemStyle: { areaColor: '#1e2d44', borderColor: '#2a4060', borderWidth: 1 },
-      emphasis: { itemStyle: { areaColor: '#243550' }, label: { show: true, color: '#00d4ff', fontSize: 10 } },
-      label: { show: true, color: 'rgba(120,180,220,0.4)', fontSize: 9 }
+      itemStyle: { areaColor: '#e9eef5', borderColor: '#b0c4de', borderWidth: 1 },
+      emphasis: { itemStyle: { areaColor: '#d4e2f0' }, label: { show: true, color: '#666', fontSize: 10 } },
+      label: { show: true, color: 'rgba(100,100,100,0.45)', fontSize: 9 }
     },
     series: [
       {
         type: 'effectScatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize(val) { return Math.max(16, val[2] * 14) },
-        rippleEffect: { brushType: 'stroke', scale: 5, period: 2.5 },
-        itemStyle: { color: '#00e5ff', shadowBlur: 20, shadowColor: 'rgba(0,229,255,0.8)' },
-        label: { show: true, formatter: '{b}', position: 'right', color: '#00e5ff', fontSize: 13, fontWeight: 'bold' }
+        symbolSize(val) { return Math.max(14, val[2] * 12) },
+        rippleEffect: { brushType: 'stroke', scale: 4, period: 3 },
+        itemStyle: { color: '#f5c542', shadowBlur: 15, shadowColor: 'rgba(245, 197, 66, 0.7)' },
+        label: { show: true, formatter: '{b}', position: 'right', color: '#f5c542', fontSize: 12, fontWeight: 'bold' }
       },
       {
         type: 'scatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize(val) { return Math.max(8, val[2] * 6) },
-        itemStyle: { color: '#00e5ff' },
+        symbolSize(val) { return Math.max(6, val[2] * 5) },
+        itemStyle: { color: '#f5c542' },
         silent: true,
         z: 1
       }
@@ -206,8 +206,8 @@ onMounted(loadData)
 
 /* 统计卡片 */
 .stat-card {
-  background: #1a2234;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  background: #fff;
+  border: 1px solid #ebeef5;
   border-radius: 12px;
   padding: 24px;
   display: flex;
@@ -238,7 +238,7 @@ onMounted(loadData)
 }
 .stat-label {
   font-size: 13px;
-  color: #8ab0d0;
+  color: #909399;
   margin-top: 6px;
 }
 
@@ -247,17 +247,12 @@ onMounted(loadData)
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #e0f0ff;
   font-weight: 600;
 }
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-.dot-green { background: #67C23A; box-shadow: 0 0 6px rgba(103,194,58,0.5); }
-.dot-red { background: #F56C6C; box-shadow: 0 0 6px rgba(245,108,108,0.5); }
-.dot-blue { background: #00d4ff; box-shadow: 0 0 6px rgba(0,212,255,0.5); }
+.dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot-green { background: #67C23A; }
+.dot-red { background: #F56C6C; }
+.dot-blue { background: #409EFF; }
 
-.sub-text { color: #5a7a96; font-size: 12px; }
+.sub-text { color: #909399; font-size: 12px; }
 </style>
