@@ -1,38 +1,21 @@
 <template>
   <div>
-    <h2 style="margin-bottom: 20px">仪表盘</h2>
+    <div class="page-header">
+      <h2>实时监控仪表盘</h2>
+      <span class="live-badge">● LIVE</span>
+    </div>
+
     <el-row :gutter="20">
-      <el-col :span="6">
-        <el-card shadow="hover">
-          <div style="text-align: center">
-            <div style="font-size: 36px; font-weight: bold; color: #409EFF">{{ stats.total_employees }}</div>
-            <div style="color: #909399; margin-top: 8px">设备总数</div>
+      <el-col :span="6" v-for="item in statCards" :key="item.label">
+        <div class="stat-card" :style="{ borderColor: item.color + '33' }">
+          <div class="stat-icon" :style="{ color: item.color, boxShadow: '0 0 20px ' + item.color + '22' }">
+            <el-icon :size="24"><component :is="item.icon" /></el-icon>
           </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover">
-          <div style="text-align: center">
-            <div style="font-size: 36px; font-weight: bold; color: #67C23A">{{ stats.online_count }}</div>
-            <div style="color: #909399; margin-top: 8px">当前在线</div>
+          <div class="stat-info">
+            <div class="stat-value" :style="{ color: item.color }">{{ item.value }}</div>
+            <div class="stat-label">{{ item.label }}</div>
           </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover">
-          <div style="text-align: center">
-            <div style="font-size: 36px; font-weight: bold; color: #F56C6C">{{ stats.offline_count }}</div>
-            <div style="color: #909399; margin-top: 8px">离线设备</div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover">
-          <div style="text-align: center">
-            <div style="font-size: 36px; font-weight: bold; color: #E6A23C">{{ stats.day_records }}</div>
-            <div style="color: #909399; margin-top: 8px">今日上报</div>
-          </div>
-        </el-card>
+        </div>
       </el-col>
     </el-row>
 
@@ -40,12 +23,14 @@
       <el-col :span="12">
         <el-card>
           <template #header>
-            <span style="color: #67C23A">在线设备</span>
+            <div class="card-title">
+              <span class="dot dot-green"></span> 在线设备
+            </div>
           </template>
           <el-table :data="recentEmployees.filter(e => e.is_online)" stripe empty-text="暂无在线设备">
             <el-table-column label="设备" min-width="140">
               <template #default="{ row }">
-                <span v-if="row.name">{{ row.name }} <span style="color: #909399; font-size: 12px">({{ row.hostname }})</span></span>
+                <span v-if="row.name">{{ row.name }} <span class="sub-text">({{ row.hostname }})</span></span>
                 <span v-else>{{ row.hostname }}</span>
               </template>
             </el-table-column>
@@ -63,12 +48,14 @@
       <el-col :span="12">
         <el-card>
           <template #header>
-            <span style="color: #F56C6C">离线 / 异常设备</span>
+            <div class="card-title">
+              <span class="dot dot-red"></span> 离线 / 异常设备
+            </div>
           </template>
           <el-table :data="offlineList" stripe empty-text="所有设备正常">
             <el-table-column label="设备" min-width="140">
               <template #default="{ row }">
-                <span v-if="row.name">{{ row.name }} <span style="color: #909399; font-size: 12px">({{ row.hostname }})</span></span>
+                <span v-if="row.name">{{ row.name }} <span class="sub-text">({{ row.hostname }})</span></span>
                 <span v-else>{{ row.hostname }}</span>
               </template>
             </el-table-column>
@@ -90,7 +77,9 @@
     <!-- 中国地图 -->
     <el-card style="margin-top: 20px">
       <template #header>
-        <span>设备分布地图</span>
+        <div class="card-title">
+          <span class="dot dot-blue"></span> 设备分布地图
+        </div>
       </template>
       <div ref="mapChart" style="height: 500px; width: 100%"></div>
     </el-card>
@@ -98,7 +87,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { getDashboard, getEmployees, getMapData } from '../api'
 
@@ -106,23 +95,23 @@ const stats = ref({ total_employees: 0, online_count: 0, offline_count: 0, day_r
 const recentEmployees = ref([])
 const offlineList = ref([])
 const mapChart = ref(null)
-
 let chartInstance = null
+
+const statCards = computed(() => [
+  { label: '设备总数', value: stats.value.total_employees, color: '#00d4ff', icon: 'Monitor' },
+  { label: '当前在线', value: stats.value.online_count, color: '#67C23A', icon: 'Connection' },
+  { label: '离线设备', value: stats.value.offline_count, color: '#F56C6C', icon: 'Warning' },
+  { label: '今日上报', value: stats.value.day_records, color: '#E6A23C', icon: 'DataLine' },
+])
 
 async function initMap(mapData) {
   if (!mapChart.value) return
-
-  // 加载中国地图 GeoJSON
   const resp = await fetch('/china.json')
   const chinaJson = await resp.json()
   echarts.registerMap('china', chinaJson)
-
-  if (chartInstance) {
-    chartInstance.dispose()
-  }
+  if (chartInstance) chartInstance.dispose()
   chartInstance = echarts.init(mapChart.value)
 
-  // 构造散点数据
   const scatterData = mapData.map(item => ({
     name: item.city,
     value: [item.lng, item.lat, item.count],
@@ -132,14 +121,14 @@ async function initMap(mapData) {
   chartInstance.setOption({
     tooltip: {
       trigger: 'item',
-      backgroundColor: 'rgba(0,0,0,0.75)',
-      borderColor: '#f5c542',
+      backgroundColor: 'rgba(10,14,26,0.9)',
+      borderColor: '#00d4ff',
       borderWidth: 1,
-      textStyle: { color: '#fff' },
+      textStyle: { color: '#e0f0ff' },
       formatter(params) {
         if (params.seriesType === 'effectScatter') {
           const d = params.data
-          return `<b style="color:#f5c542">${d.name}</b><br/>设备数量：${d.value[2]} 台<br/>设备：${d.employees.join('、')}`
+          return `<b style="color:#00d4ff">${d.name}</b><br/>设备数量：${d.value[2]} 台<br/>设备：${d.employees.join('、')}`
         }
         return params.name
       }
@@ -149,64 +138,26 @@ async function initMap(mapData) {
       roam: true,
       zoom: 1.2,
       center: [104, 36],
-      itemStyle: {
-        areaColor: '#e9eef5',
-        borderColor: '#b0c4de',
-        borderWidth: 1
-      },
-      emphasis: {
-        itemStyle: {
-          areaColor: '#d4e2f0'
-        },
-        label: {
-          show: true,
-          color: '#666',
-          fontSize: 10
-        }
-      },
-      label: {
-        show: true,
-        color: 'rgba(100,100,100,0.45)',
-        fontSize: 9
-      }
+      itemStyle: { areaColor: '#151d2e', borderColor: '#1a3050', borderWidth: 1 },
+      emphasis: { itemStyle: { areaColor: '#1a2a40' }, label: { show: true, color: '#00d4ff', fontSize: 10 } },
+      label: { show: true, color: 'rgba(0,212,255,0.25)', fontSize: 9 }
     },
     series: [
       {
         type: 'effectScatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize(val) {
-          return Math.max(14, val[2] * 12)
-        },
-        rippleEffect: {
-          brushType: 'stroke',
-          scale: 4,
-          period: 3
-        },
-        itemStyle: {
-          color: '#f5c542',
-          shadowBlur: 15,
-          shadowColor: 'rgba(245, 197, 66, 0.7)'
-        },
-        label: {
-          show: true,
-          formatter: '{b}',
-          position: 'right',
-          color: '#f5c542',
-          fontSize: 12,
-          fontWeight: 'bold'
-        }
+        symbolSize(val) { return Math.max(14, val[2] * 12) },
+        rippleEffect: { brushType: 'stroke', scale: 4, period: 3 },
+        itemStyle: { color: '#00d4ff', shadowBlur: 15, shadowColor: 'rgba(0,212,255,0.7)' },
+        label: { show: true, formatter: '{b}', position: 'right', color: '#00d4ff', fontSize: 12, fontWeight: 'bold' }
       },
       {
         type: 'scatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize(val) {
-          return Math.max(6, val[2] * 5)
-        },
-        itemStyle: {
-          color: '#f5c542'
-        },
+        symbolSize(val) { return Math.max(6, val[2] * 5) },
+        itemStyle: { color: '#00d4ff' },
         silent: true,
         z: 1
       }
@@ -216,24 +167,97 @@ async function initMap(mapData) {
 
 async function loadData() {
   try {
-    const [dashRes, empRes, mapRes] = await Promise.all([
-      getDashboard(),
-      getEmployees({ page: 1, page_size: 100 }),
-      getMapData()
-    ])
+    const [dashRes, empRes, mapRes] = await Promise.all([getDashboard(), getEmployees({ page: 1, page_size: 100 }), getMapData()])
     stats.value = dashRes.data
     recentEmployees.value = empRes.data.data
     offlineList.value = dashRes.data.offline_list || []
-
     await nextTick()
-    if (mapRes.data && mapRes.data.length > 0) {
-      initMap(mapRes.data)
-    } else {
-      // 没有地图数据也要显示空白地图
-      initMap([])
-    }
+    initMap(mapRes.data || [])
   } catch {}
 }
 
 onMounted(loadData)
 </script>
+
+<style scoped>
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.page-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #e0f0ff;
+}
+.live-badge {
+  font-size: 11px;
+  color: #67C23A;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 2px;
+  animation: livePulse 2s ease-in-out infinite;
+}
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* 统计卡片 */
+.stat-card {
+  background: #111827;
+  border: 1px solid rgba(0, 212, 255, 0.08);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: all 0.3s;
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 212, 255, 0.15);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+.stat-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: rgba(0, 212, 255, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  font-family: 'Courier New', monospace;
+}
+.stat-label {
+  font-size: 13px;
+  color: #7aa0c0;
+  margin-top: 6px;
+}
+
+/* 卡片标题 */
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #e0f0ff;
+  font-weight: 600;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.dot-green { background: #67C23A; box-shadow: 0 0 6px rgba(103,194,58,0.5); }
+.dot-red { background: #F56C6C; box-shadow: 0 0 6px rgba(245,108,108,0.5); }
+.dot-blue { background: #00d4ff; box-shadow: 0 0 6px rgba(0,212,255,0.5); }
+
+.sub-text { color: #5a7a96; font-size: 12px; }
+</style>
