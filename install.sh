@@ -129,7 +129,8 @@ server {
 }
 NGINX
 
-# 移除可能冲突的默认站点
+# 移除 Nginx 默认站点（监听 80 端口，我们不需要）
+rm -f /etc/nginx/conf.d/default.conf 2>/dev/null || true
 rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
 
 # SELinux 放行（CentOS/RHEL）
