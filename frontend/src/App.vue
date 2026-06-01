@@ -22,10 +22,14 @@
           <span>使用 说明</span>
         </el-menu-item>
       </el-menu>
-      <div style="margin-top: auto; padding: 16px; border-top: 1px solid #3a4a5e">
+      <div style="margin-top: auto; padding: 12px 16px; border-top: 1px solid #3a4a5e">
         <el-button text style="color: #bfcbd9; width: 100%" @click="showChangePassword = true">
           <el-icon><Key /></el-icon>
           <span style="margin-left: 6px">修改密码</span>
+        </el-button>
+        <el-button text style="color: #bfcbd9; width: 100%; margin-top: 4px" @click="handleLogout">
+          <el-icon><SwitchButton /></el-icon>
+          <span style="margin-left: 6px">退出登录</span>
         </el-button>
       </div>
     </el-aside>
@@ -66,6 +70,11 @@ const route = useRoute()
 const router = useRouter()
 const currentPath = computed(() => route.path)
 const showSidebar = computed(() => route.path !== '/login')
+
+function handleLogout() {
+  localStorage.removeItem('token')
+  router.push('/login')
+}
 
 const showChangePassword = ref(false)
 const pwdLoading = ref(false)
