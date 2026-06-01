@@ -50,14 +50,22 @@ def report(data: ReportRequest, db: Session = Depends(get_db)):
         latitude = location.get("lat")
         longitude = location.get("lon")
 
-    # 去重：同一员工同一 IP 5分钟内不重复记录
+    # 去重：同一员工同一 IP 1小时内更新时间而不新增记录
     recent = db.query(IpRecord).filter(
         IpRecord.employee_id == employee.id,
         IpRecord.ip == data.ip,
-        IpRecord.reported_at >= datetime.now() - timedelta(minutes=5)
+        IpRecord.reported_at >= datetime.now() - timedelta(hours=1)
     ).first()
     if recent:
-        return {"status": "ok", "message": "duplicate"}
+        recent.reported_at = datetime.now()
+        if city:
+            recent.city = city
+        if latitude is not None:
+            recent.latitude = latitude
+        if longitude is not None:
+            recent.longitude = longitude
+        db.commit()
+        return {"status": "ok", "message": "updated", "city": city}
 
     record = IpRecord(
         employee_id=employee.id,
