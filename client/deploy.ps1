@@ -63,7 +63,8 @@ $lines = @(
     '        }'
     '    } catch { Write-Log "WARN: GeoIP query failed, fallback to pure IP" }'
     '    $body = @{hostname=$hostname; ip=$ip; city=$city; lat=$lat; lon=$lon} | ConvertTo-Json -Compress'
-    '    Invoke-WebRequest -Uri $SERVER_URL -Method Post -Body $body -ContentType "application/json" -UseBasicParsing -TimeoutSec 10 | Out-Null'
+    '    $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)'
+    '    Invoke-WebRequest -Uri $SERVER_URL -Method Post -Body $bodyBytes -ContentType "application/json; charset=utf-8" -UseBasicParsing -TimeoutSec 10 | Out-Null'
     '    Write-Log "OK: $hostname -> $ip [$city] ($lat,$lon)"'
     '} catch { Write-Log "ERROR: $($_.Exception.Message)"; exit 1 }'
 )
