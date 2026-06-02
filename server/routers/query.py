@@ -17,16 +17,15 @@ def dashboard(db: Session = Depends(get_db), _: Admin = Depends(get_current_admi
     total_employees = db.query(func.count(Employee.id)).scalar()
     total_records = db.query(func.count(IpRecord.id)).scalar()
 
-    # 最近10分钟有上报的算"在线"
+    # 用 Employee.last_seen_at 判断在线（每次上报都更新，不受历史去重影响）
     ten_min_ago = datetime.now() - timedelta(minutes=10)
-    online_count = db.query(func.count(func.distinct(IpRecord.employee_id))).filter(
-        IpRecord.reported_at >= ten_min_ago
+    online_count = db.query(func.count(Employee.id)).filter(
+        Employee.last_seen_at >= ten_min_ago
     ).scalar()
 
-    # 离线设备 = 不在线的所有设备（互补关系，确保 总数 = 在线 + 离线）
     offline_count = total_employees - online_count
 
-    # 今日上报数（今天0点之后）
+    # 今日新增记录数
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     day_records = db.query(func.count(IpRecord.id)).filter(
         IpRecord.reported_at >= today_start
@@ -34,11 +33,7 @@ def dashboard(db: Session = Depends(get_db), _: Admin = Depends(get_current_admi
 
     # 离线设备列表
     offline_employees = db.query(Employee).filter(
-        ~Employee.id.in_(
-            db.query(func.distinct(IpRecord.employee_id)).filter(
-                IpRecord.reported_at >= ten_min_ago
-            )
-        )
+        Employee.last_seen_at < ten_min_ago
     ).all()
     offline_list = []
     for emp in offline_employees:
@@ -84,7 +79,7 @@ def list_employees(
     for emp in employees:
         latest = db.query(IpRecord).filter(IpRecord.employee_id == emp.id).order_by(IpRecord.reported_at.desc()).first()
         ten_min_ago = datetime.now() - timedelta(minutes=10)
-        is_online = latest and latest.reported_at >= ten_min_ago
+        is_online = emp.last_seen_at and emp.last_seen_at >= ten_min_ago
         result.append({
             "id": emp.id,
             "hostname": emp.hostname,

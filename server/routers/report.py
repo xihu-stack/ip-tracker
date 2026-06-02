@@ -39,6 +39,9 @@ def report(data: ReportRequest, db: Session = Depends(get_db)):
         db.add(employee)
         db.flush()
 
+    # 每次上报都更新 last_seen_at（用于在线状态判断）
+    employee.last_seen_at = datetime.now()
+
     # 优先使用客户端传来的城市和经纬度，没有则服务端查询
     city = data.city
     latitude = data.lat
@@ -50,22 +53,15 @@ def report(data: ReportRequest, db: Session = Depends(get_db)):
         latitude = location.get("lat")
         longitude = location.get("lon")
 
-    # 去重：同一员工同一 IP 1小时内更新时间而不新增记录
+    # 去重：同一员工同一 IP 1小时内不新增记录
     recent = db.query(IpRecord).filter(
         IpRecord.employee_id == employee.id,
         IpRecord.ip == data.ip,
         IpRecord.reported_at >= datetime.now() - timedelta(hours=1)
     ).first()
     if recent:
-        recent.reported_at = datetime.now()
-        if city:
-            recent.city = city
-        if latitude is not None:
-            recent.latitude = latitude
-        if longitude is not None:
-            recent.longitude = longitude
         db.commit()
-        return {"status": "ok", "message": "updated", "city": city}
+        return {"status": "ok", "message": "duplicate", "city": city}
 
     record = IpRecord(
         employee_id=employee.id,

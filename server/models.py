@@ -22,6 +22,7 @@ class Employee(Base):
     hostname: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(128), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
     records: Mapped[list["IpRecord"]] = relationship("IpRecord", back_populates="employee", order_by="IpRecord.reported_at.desc()")
 

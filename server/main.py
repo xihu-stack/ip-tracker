@@ -14,6 +14,16 @@ from routers import report, query, auth
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
 
+    # 数据库迁移：为旧表添加 last_seen_at 字段
+    import sqlalchemy
+    with engine.connect() as conn:
+        try:
+            conn.execute(sqlalchemy.text("ALTER TABLE employees ADD COLUMN last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP"))
+            conn.commit()
+            print("[startup] 已添加 employees.last_seen_at 字段")
+        except Exception:
+            pass  # 字段已存在，忽略
+
     # 首次启动自动创建默认管理员
     db = SessionLocal()
     try:
