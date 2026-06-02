@@ -98,7 +98,7 @@ const mapChart = ref(null)
 let chartInstance = null
 
 const statCards = computed(() => [
-  { label: '设备总数', value: stats.value.total_employees, color: '#00d4ff', icon: 'Monitor' },
+  { label: '设备总数', value: stats.value.total_employees, color: '#409EFF', icon: 'Monitor' },
   { label: '当前在线', value: stats.value.online_count, color: '#67C23A', icon: 'Connection' },
   { label: '离线设备', value: stats.value.offline_count, color: '#F56C6C', icon: 'Warning' },
   { label: '今日上报', value: stats.value.day_records, color: '#E6A23C', icon: 'DataLine' },
@@ -190,11 +190,14 @@ onMounted(loadData)
   margin: 0;
   font-size: 20px;
   font-weight: 600;
-  color: #e0f0ff;
+  color: #303133;
 }
 .live-badge {
   font-size: 11px;
   color: #67C23A;
+  background: rgba(103,194,58,0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
   font-family: 'Courier New', monospace;
   letter-spacing: 2px;
   animation: livePulse 2s ease-in-out infinite;
