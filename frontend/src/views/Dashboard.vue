@@ -27,7 +27,7 @@
               <span class="dot dot-green"></span> 在线设备
             </div>
           </template>
-          <el-table :data="recentEmployees.filter(e => e.is_online)" stripe empty-text="暂无在线设备">
+          <el-table :data="recentEmployees.filter(e => e.is_online)" stripe empty-text="暂无在线设备" max-height="360">
             <el-table-column label="设备" min-width="140">
               <template #default="{ row }">
                 <span v-if="row.name">{{ row.name }} <span class="sub-text">({{ row.hostname }})</span></span>
@@ -52,7 +52,7 @@
               <span class="dot dot-red"></span> 离线 / 异常设备
             </div>
           </template>
-          <el-table :data="offlineList" stripe empty-text="所有设备正常">
+          <el-table :data="offlineList" stripe empty-text="所有设备正常" max-height="360">
             <el-table-column label="设备" min-width="140">
               <template #default="{ row }">
                 <span v-if="row.name">{{ row.name }} <span class="sub-text">({{ row.hostname }})</span></span>
@@ -147,19 +147,18 @@ async function initMap(mapData) {
         type: 'effectScatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize(val) { return Math.max(14, val[2] * 12) },
-        rippleEffect: { brushType: 'stroke', scale: 4, period: 3 },
-        itemStyle: { color: '#f5c542', shadowBlur: 15, shadowColor: 'rgba(245, 197, 66, 0.7)' },
-        label: { show: true, formatter: '{b}', position: 'right', color: '#f5c542', fontSize: 12, fontWeight: 'bold' }
-      },
-      {
-        type: 'scatter',
-        coordinateSystem: 'geo',
-        data: scatterData,
-        symbolSize(val) { return Math.max(6, val[2] * 5) },
-        itemStyle: { color: '#f5c542' },
-        silent: true,
-        z: 1
+        symbolSize: 14,
+        rippleEffect: { brushType: 'stroke', scale: 3, period: 3 },
+        itemStyle: { color: '#f5c542', shadowBlur: 10, shadowColor: 'rgba(245, 197, 66, 0.5)' },
+        label: {
+          show: true,
+          formatter(p) { return `${p.name}\n${p.value[2]}台` },
+          position: 'right',
+          color: '#f5c542',
+          fontSize: 12,
+          fontWeight: 'bold',
+          lineHeight: 18
+        }
       }
     ]
   })
