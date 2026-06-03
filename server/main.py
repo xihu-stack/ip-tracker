@@ -18,7 +18,10 @@ async def lifespan(app: FastAPI):
     import sqlalchemy
     with engine.connect() as conn:
         try:
-            conn.execute(sqlalchemy.text("ALTER TABLE employees ADD COLUMN last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP"))
+            conn.execute(sqlalchemy.text("ALTER TABLE employees ADD COLUMN last_seen_at DATETIME"))
+            conn.commit()
+            # 将已有行的 last_seen_at 设为 created_at（避免 NULL 导致查询报错）
+            conn.execute(sqlalchemy.text("UPDATE employees SET last_seen_at = created_at WHERE last_seen_at IS NULL"))
             conn.commit()
             print("[startup] 已添加 employees.last_seen_at 字段")
         except Exception:
