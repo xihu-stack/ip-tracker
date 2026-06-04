@@ -126,6 +126,7 @@ async function initMap(mapData) {
       borderWidth: 1,
       textStyle: { color: '#1e293b', fontSize: 13 },
       confine: true,
+      extraCssText: 'box-shadow: 0 4px 16px rgba(0,0,0,0.12); border-radius: 8px;',
       formatter(params) {
         if (params.seriesType === 'effectScatter') {
           const d = params.data
@@ -133,7 +134,7 @@ async function initMap(mapData) {
           const emps = d.employees.length > maxShow
             ? d.employees.slice(0, maxShow).join('、') + ` 等${d.employees.length}台`
             : d.employees.join('、')
-          return `<div style="max-width:280px;word-break:break-all"><b style="color:#2563eb">${d.name}</b><br/>设备数量：${d.value[2]} 台<br/>设备：${emps}</div>`
+          return `<div style="max-width:280px;word-break:break-all"><b style="color:#2563eb;font-size:14px">${d.name}</b><br/><span style="color:#64748b">设备数量：</span><b>${d.value[2]}</b> 台<br/><span style="color:#64748b">设备：</span>${emps}</div>`
         }
         return params.name
       }
@@ -143,29 +144,63 @@ async function initMap(mapData) {
       roam: true,
       zoom: 1.2,
       center: [104, 36],
-      itemStyle: { areaColor: '#e8edf5', borderColor: '#c8d3e3', borderWidth: 0.8 },
-      emphasis: { itemStyle: { areaColor: '#dbe4f0' }, label: { show: true, color: '#475569', fontSize: 10 } },
-      label: { show: true, color: 'rgba(71,85,105,0.5)', fontSize: 9 }
+      itemStyle: {
+        areaColor: {
+          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: '#dbe4f0' },
+            { offset: 1, color: '#c8d5e5' }
+          ]
+        },
+        borderColor: '#b0bfd2',
+        borderWidth: 0.6
+      },
+      emphasis: {
+        itemStyle: {
+          areaColor: {
+            type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: '#c7d6ea' },
+              { offset: 1, color: '#b3c5dc' }
+            ]
+          }
+        },
+        label: { show: true, color: '#475569', fontSize: 10 }
+      },
+      label: { show: true, color: 'rgba(71,85,105,0.4)', fontSize: 9 }
     },
     series: [
+      // 热力光晕底层
+      {
+        type: 'scatter',
+        coordinateSystem: 'geo',
+        data: scatterData,
+        symbolSize(val) { return Math.max(30, val[2] * 15) },
+        itemStyle: { color: 'rgba(37, 99, 235, 0.08)' },
+        silent: true,
+        z: 1
+      },
+      // 涟漪散点
       {
         type: 'effectScatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize: 14,
-        rippleEffect: { brushType: 'stroke', scale: 3, period: 3 },
-        itemStyle: { color: '#2563eb', shadowBlur: 12, shadowColor: 'rgba(37, 99, 235, 0.4)' },
-        label: {
-          show: true,
-          formatter(p) { return `${p.name}\n${p.value[2]}台` },
-          position: 'right',
-          color: '#1e293b',
-          fontSize: 11,
-          fontWeight: 'bold',
-          lineHeight: 16,
-          textBorderColor: '#ffffff',
-          textBorderWidth: 2
-        }
+        symbolSize(val) { return Math.max(10, val[2] * 4) },
+        rippleEffect: { brushType: 'stroke', scale: 3.5, period: 4 },
+        itemStyle: {
+          color: {
+            type: 'radial', x: 0.5, y: 0.5, r: 0.5,
+            colorStops: [
+              { offset: 0, color: '#60a5fa' },
+              { offset: 0.6, color: '#2563eb' },
+              { offset: 1, color: '#1d4ed8' }
+            ]
+          },
+          shadowBlur: 16,
+          shadowColor: 'rgba(37, 99, 235, 0.5)'
+        },
+        label: { show: false },
+        z: 2
       }
     ]
   })
