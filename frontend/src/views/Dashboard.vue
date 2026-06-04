@@ -87,7 +87,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { getDashboard, getEmployees, getMapData } from '../api'
 
@@ -221,7 +221,14 @@ async function loadData() {
   } catch {}
 }
 
-onMounted(loadData)
+let refreshTimer = null
+onMounted(() => {
+  loadData()
+  refreshTimer = setInterval(loadData, 30000)
+})
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+})
 </script>
 
 <style scoped>
