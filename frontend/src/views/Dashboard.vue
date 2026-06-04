@@ -169,14 +169,18 @@ async function initMap(mapData) {
       },
       label: { show: true, color: 'rgba(71,85,105,0.4)', fontSize: 9 }
     },
+    // 缩放动画
+    animation: true,
+    animationDuration: 800,
+    animationEasing: 'cubicOut',
     series: [
       // 热力光晕底层
       {
         type: 'scatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize(val) { return Math.max(30, val[2] * 15) },
-        itemStyle: { color: 'rgba(37, 99, 235, 0.08)' },
+        symbolSize(val) { return Math.sqrt(val[2]) * 18 + 8 },
+        itemStyle: { color: 'rgba(37, 99, 235, 0.07)' },
         silent: true,
         z: 1
       },
@@ -185,7 +189,7 @@ async function initMap(mapData) {
         type: 'effectScatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize(val) { return Math.max(10, val[2] * 4) },
+        symbolSize(val) { return Math.sqrt(val[2]) * 5 + 6 },
         rippleEffect: { brushType: 'stroke', scale: 3.5, period: 4 },
         itemStyle: {
           color: {
