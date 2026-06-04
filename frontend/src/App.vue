@@ -224,7 +224,7 @@ async function handleChangePassword() {
 
 /* 全局 Element Plus 覆盖 - 浅色科技风 */
 .el-card { border-radius: 12px !important; }
-.el-button--primary { background: linear-gradient(135deg, #1a6dcc, #409EFF) !important; border: none !important; }
-.el-button--primary:hover { box-shadow: 0 2px 12px rgba(64,158,255,0.4) !important; }
+.el-button--primary:not(.is-link) { background: linear-gradient(135deg, #1a6dcc, #409EFF) !important; border: none !important; }
+.el-button--primary:not(.is-link):hover { box-shadow: 0 2px 12px rgba(64,158,255,0.4) !important; }
 h2 { color: #303133 !important; }
 </style>
