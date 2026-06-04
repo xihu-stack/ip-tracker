@@ -120,15 +120,6 @@ async function initMap(mapData) {
   // 按数量降序：大的先画在底层，小的后画在顶层，不遮挡
   scatterData.sort((a, b) => b.value[2] - a.value[2])
 
-  // 取设备最多的城市作为飞线起点（总部/核心城市）
-  const topCity = scatterData.reduce((a, b) => a.value[2] > b.value[2] ? a : b, scatterData[0])
-  const flyLines = scatterData
-    .filter(d => d.name !== topCity.name)
-    .map(d => ({
-      coords: [[topCity.value[0], topCity.value[1]], [d.value[0], d.value[1]]],
-      count: d.value[2]
-    }))
-
   chartInstance.setOption({
     backgroundColor: 'transparent',
     tooltip: {
@@ -171,28 +162,6 @@ async function initMap(mapData) {
     animationDuration: 800,
     animationEasing: 'cubicOut',
     series: [
-      // 飞线动画
-      {
-        type: 'lines',
-        coordinateSystem: 'geo',
-        zlevel: 1,
-        effect: {
-          show: true,
-          period: 5,
-          trailLength: 0.4,
-          symbol: 'arrow',
-          symbolSize: 5,
-          color: '#60a5fa'
-        },
-        lineStyle: {
-          color: '#2563eb',
-          width: 1,
-          opacity: 0.15,
-          curveness: 0.3
-        },
-        data: flyLines,
-        silent: true
-      },
       // 热力光晕底层
       {
         type: 'scatter',
