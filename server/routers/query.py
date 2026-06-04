@@ -44,7 +44,7 @@ def dashboard(db: Session = Depends(get_db), _: Admin = Depends(get_current_admi
             "name": emp.name or "",
             "latest_ip": latest.ip if latest else "-",
             "latest_city": latest.city if latest else "-",
-            "latest_time": latest.reported_at.strftime("%Y-%m-%d %H:%M:%S") if latest else "-",
+            "latest_time": emp.last_seen_at.strftime("%Y-%m-%d %H:%M:%S") if emp.last_seen_at else (latest.reported_at.strftime("%Y-%m-%d %H:%M:%S") if latest else "-"),
             "status": "never" if not latest else "offline"
         })
 
@@ -87,7 +87,7 @@ def list_employees(
             "created_at": emp.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             "latest_ip": latest.ip if latest else "-",
             "latest_city": latest.city if latest else "-",
-            "latest_time": latest.reported_at.strftime("%Y-%m-%d %H:%M:%S") if latest else "-",
+            "latest_time": emp.last_seen_at.strftime("%Y-%m-%d %H:%M:%S") if emp.last_seen_at else (latest.reported_at.strftime("%Y-%m-%d %H:%M:%S") if latest else "-"),
             "is_online": is_online
         })
 
