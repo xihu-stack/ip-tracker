@@ -44,5 +44,6 @@ export const getEmployees = (params) => api.get('/employees', { params })
 export const getEmployeeRecords = (employeeId, params) => api.get(`/employees/${employeeId}/records`, { params })
 export const getMapData = () => api.get('/map-data')
 export const updateEmployee = (id, data) => api.put(`/employees/${id}`, data)
+export const deleteEmployee = (id) => api.delete(`/employees/${id}`)
 
 export default api

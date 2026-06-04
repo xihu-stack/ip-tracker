@@ -27,10 +27,15 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="160">
+        <el-table-column label="操作" width="210">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="openEdit(row)">编辑</el-button>
             <el-button type="primary" link size="small" @click="viewHistory(row)">查看历史</el-button>
+            <el-popconfirm title="确定删除该员工及其所有上报记录？" confirm-button-text="删除" cancel-button-text="取消" confirm-button-type="danger" @confirm="handleDelete(row)">
+              <template #reference>
+                <el-button type="danger" link size="small">删除</el-button>
+              </template>
+            </el-popconfirm>
           </template>
         </el-table-column>
       </el-table>
@@ -70,7 +75,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getEmployees, updateEmployee } from '../api'
+import { getEmployees, updateEmployee, deleteEmployee } from '../api'
 
 const router = useRouter()
 const employees = ref([])
@@ -118,6 +123,14 @@ async function saveName() {
 
 function viewHistory(row) {
   router.push({ path: '/history', query: { employee_id: row.id, hostname: row.hostname } })
+}
+
+async function handleDelete(row) {
+  try {
+    await deleteEmployee(row.id)
+    ElMessage.success('删除成功')
+    loadData()
+  } catch {}
 }
 
 onMounted(loadData)

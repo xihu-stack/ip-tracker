@@ -189,3 +189,14 @@ def update_employee(employee_id: int, data: UpdateEmployeeRequest, db: Session =
     employee.name = data.name
     db.commit()
     return {"status": "ok", "id": employee.id, "hostname": employee.hostname, "name": employee.name}
+
+
+@router.delete("/employees/{employee_id}")
+def delete_employee(employee_id: int, db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)):
+    employee = db.query(Employee).filter(Employee.id == employee_id).first()
+    if not employee:
+        raise HTTPException(status_code=404, detail="员工不存在")
+    db.query(IpRecord).filter(IpRecord.employee_id == employee_id).delete()
+    db.delete(employee)
+    db.commit()
+    return {"status": "ok", "message": f"已删除员工 {employee.hostname} 及其所有记录"}
