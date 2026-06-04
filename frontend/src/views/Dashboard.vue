@@ -117,6 +117,8 @@ async function initMap(mapData) {
     value: [item.lng, item.lat, item.count],
     employees: item.employees
   }))
+  // 按数量降序：大的先画在底层，小的后画在顶层，不遮挡
+  scatterData.sort((a, b) => b.value[2] - a.value[2])
 
   chartInstance.setOption({
     tooltip: {

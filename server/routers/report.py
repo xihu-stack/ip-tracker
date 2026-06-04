@@ -64,6 +64,9 @@ def report(data: ReportRequest, db: Session = Depends(get_db)):
         IpRecord.reported_at >= datetime.now() - timedelta(hours=1)
     ).first()
     if recent:
+        # 去重不新增记录，但更新城市信息（可能查到了更精确的区级数据）
+        if city and city != "未知" and recent.city != city:
+            recent.city = city
         db.commit()
         return {"status": "ok", "message": "duplicate", "city": city}
 
