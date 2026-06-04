@@ -121,14 +121,14 @@ async function initMap(mapData) {
   chartInstance.setOption({
     tooltip: {
       trigger: 'item',
-      backgroundColor: 'rgba(10,14,26,0.9)',
-      borderColor: '#00d4ff',
+      backgroundColor: 'rgba(8,14,32,0.92)',
+      borderColor: '#00e5ff',
       borderWidth: 1,
       textStyle: { color: '#e0f0ff' },
       formatter(params) {
         if (params.seriesType === 'effectScatter') {
           const d = params.data
-          return `<b style="color:#00d4ff">${d.name}</b><br/>设备数量：${d.value[2]} 台<br/>设备：${d.employees.join('、')}`
+          return `<b style="color:#00e5ff">${d.name}</b><br/>设备数量：${d.value[2]} 台<br/>设备：${d.employees.join('、')}`
         }
         return params.name
       }
@@ -138,26 +138,28 @@ async function initMap(mapData) {
       roam: true,
       zoom: 1.2,
       center: [104, 36],
-      itemStyle: { areaColor: '#e9eef5', borderColor: '#b0c4de', borderWidth: 1 },
-      emphasis: { itemStyle: { areaColor: '#d4e2f0' }, label: { show: true, color: '#666', fontSize: 10 } },
-      label: { show: true, color: 'rgba(100,100,100,0.45)', fontSize: 9 }
+      itemStyle: { areaColor: '#0d1b2a', borderColor: '#1b3a5c', borderWidth: 1 },
+      emphasis: { itemStyle: { areaColor: '#1a3352' }, label: { show: true, color: '#7ec8e3', fontSize: 10 } },
+      label: { show: true, color: 'rgba(120,160,200,0.35)', fontSize: 9 }
     },
     series: [
       {
         type: 'effectScatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize: 14,
-        rippleEffect: { brushType: 'stroke', scale: 3, period: 3 },
-        itemStyle: { color: '#f5c542', shadowBlur: 10, shadowColor: 'rgba(245, 197, 66, 0.5)' },
+        symbolSize: 16,
+        rippleEffect: { brushType: 'stroke', scale: 4, period: 3 },
+        itemStyle: { color: '#00e5ff', shadowBlur: 20, shadowColor: 'rgba(0, 229, 255, 0.6)' },
         label: {
           show: true,
           formatter(p) { return `${p.name}\n${p.value[2]}台` },
           position: 'right',
-          color: '#f5c542',
+          color: '#ffffff',
           fontSize: 12,
           fontWeight: 'bold',
-          lineHeight: 18
+          lineHeight: 18,
+          textBorderColor: '#000000',
+          textBorderWidth: 2
         }
       }
     ]
