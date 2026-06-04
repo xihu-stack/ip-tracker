@@ -14,7 +14,7 @@ def ip_to_city(ip: str) -> dict:
     result = {"city": "未知", "lat": None, "lon": None}
 
     try:
-        url = f"http://ip-api.com/json/{ip}?lang=zh-CN&fields=status,regionName,city,lat,lon"
+        url = f"http://ip-api.com/json/{ip}?lang=zh-CN&fields=status,regionName,city,districtName,lat,lon"
         req = urllib.request.Request(url, headers={"User-Agent": "IPTracker/1.0"})
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read().decode())
@@ -22,7 +22,11 @@ def ip_to_city(ip: str) -> dict:
         if data.get("status") == "success":
             region = data.get("regionName", "")
             city = data.get("city", "")
-            city_str = f"{region}-{city}" if region and city and region != city else (city or region or "未知")
+            district = data.get("districtName", "")
+            parts = [p for p in [region, city, district] if p]
+            # 去重相邻重复（如 "上海-上海-浦东" → "上海-浦东"）
+            deduped = [parts[0]] + [parts[i] for i in range(1, len(parts)) if parts[i] != parts[i - 1]]
+            city_str = "-".join(deduped) if deduped else "未知"
             result = {
                 "city": city_str,
                 "lat": data.get("lat"),

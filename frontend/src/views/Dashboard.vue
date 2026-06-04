@@ -125,10 +125,15 @@ async function initMap(mapData) {
       borderColor: '#00e5ff',
       borderWidth: 1,
       textStyle: { color: '#e0f0ff' },
+      confine: true,
       formatter(params) {
         if (params.seriesType === 'effectScatter') {
           const d = params.data
-          return `<b style="color:#00e5ff">${d.name}</b><br/>设备数量：${d.value[2]} 台<br/>设备：${d.employees.join('、')}`
+          const maxShow = 5
+          const emps = d.employees.length > maxShow
+            ? d.employees.slice(0, maxShow).join('、') + ` 等${d.employees.length}台`
+            : d.employees.join('、')
+          return `<div style="max-width:260px;word-break:break-all"><b style="color:#00e5ff">${d.name}</b><br/>设备数量：${d.value[2]} 台<br/>设备：${emps}</div>`
         }
         return params.name
       }
