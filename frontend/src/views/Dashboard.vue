@@ -75,7 +75,7 @@
     </el-row>
 
     <!-- 中国地图 -->
-    <el-card style="margin-top: 16px">
+    <el-card class="map-card">
       <template #header>
         <div class="card-title">
           <span class="dot dot-blue"></span> 设备分布地图
@@ -120,7 +120,17 @@ async function initMap(mapData) {
   // 按数量降序：大的先画在底层，小的后画在顶层，不遮挡
   scatterData.sort((a, b) => b.value[2] - a.value[2])
 
+  // 取设备最多的城市作为飞线起点（总部/核心城市）
+  const topCity = scatterData.reduce((a, b) => a.value[2] > b.value[2] ? a : b, scatterData[0])
+  const flyLines = scatterData
+    .filter(d => d.name !== topCity.name)
+    .map(d => ({
+      coords: [[topCity.value[0], topCity.value[1]], [d.value[0], d.value[1]]],
+      count: d.value[2]
+    }))
+
   chartInstance.setOption({
+    backgroundColor: 'transparent',
     tooltip: {
       trigger: 'item',
       backgroundColor: 'rgba(255,255,255,0.96)',
@@ -147,42 +157,49 @@ async function initMap(mapData) {
       zoom: 1.2,
       center: [104, 36],
       itemStyle: {
-        areaColor: {
-          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: '#dbe4f0' },
-            { offset: 1, color: '#c8d5e5' }
-          ]
-        },
-        borderColor: '#b0bfd2',
+        areaColor: '#0f1b2e',
+        borderColor: '#1a3050',
         borderWidth: 0.6
       },
       emphasis: {
-        itemStyle: {
-          areaColor: {
-            type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [
-              { offset: 0, color: '#c7d6ea' },
-              { offset: 1, color: '#b3c5dc' }
-            ]
-          }
-        },
-        label: { show: true, color: '#475569', fontSize: 10 }
+        itemStyle: { areaColor: '#162a45' },
+        label: { show: true, color: '#6ba3d6', fontSize: 10 }
       },
-      label: { show: true, color: 'rgba(71,85,105,0.4)', fontSize: 9 }
+      label: { show: true, color: 'rgba(100,160,210,0.3)', fontSize: 9 }
     },
-    // 缩放动画
     animation: true,
     animationDuration: 800,
     animationEasing: 'cubicOut',
     series: [
+      // 飞线动画
+      {
+        type: 'lines',
+        coordinateSystem: 'geo',
+        zlevel: 1,
+        effect: {
+          show: true,
+          period: 5,
+          trailLength: 0.4,
+          symbol: 'arrow',
+          symbolSize: 5,
+          color: '#60a5fa'
+        },
+        lineStyle: {
+          color: '#2563eb',
+          width: 1,
+          opacity: 0.15,
+          curveness: 0.3
+        },
+        data: flyLines,
+        silent: true
+      },
       // 热力光晕底层
       {
         type: 'scatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize(val) { return Math.sqrt(val[2]) * 18 + 8 },
-        itemStyle: { color: 'rgba(37, 99, 235, 0.07)' },
+        symbolSize(val) { return Math.sqrt(val[2]) * 20 + 10 },
+        itemStyle: { color: 'rgba(37, 99, 235, 0.06)' },
         silent: true,
         z: 1
       },
@@ -197,13 +214,13 @@ async function initMap(mapData) {
           color: {
             type: 'radial', x: 0.5, y: 0.5, r: 0.5,
             colorStops: [
-              { offset: 0, color: '#60a5fa' },
-              { offset: 0.6, color: '#2563eb' },
+              { offset: 0, color: '#93c5fd' },
+              { offset: 0.5, color: '#3b82f6' },
               { offset: 1, color: '#1d4ed8' }
             ]
           },
           shadowBlur: 16,
-          shadowColor: 'rgba(37, 99, 235, 0.5)'
+          shadowColor: 'rgba(59, 130, 246, 0.5)'
         },
         label: { show: false },
         z: 2
@@ -307,4 +324,16 @@ onUnmounted(() => {
 .dot-blue { background: var(--accent); }
 
 .sub-text { color: var(--text-muted); font-size: 12px; }
+
+/* 地图卡片深色背景 */
+.map-card {
+  margin-top: 16px;
+  background: #0a1628 !important;
+  border-color: #1a2a44 !important;
+}
+.map-card :deep(.el-card__header) {
+  background: #0a1628 !important;
+  border-color: #1a2a44 !important;
+  color: #e2e8f0 !important;
+}
 </style>
