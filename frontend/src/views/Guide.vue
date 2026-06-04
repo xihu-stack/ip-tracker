@@ -174,10 +174,10 @@ const fileList = ref([
 .guide-text {
   line-height: 1.8;
   margin: 0;
-  color: var(--text-secondary);
+  color: #475569;
 }
 .step-desc {
-  color: var(--text-muted);
+  color: #909399;
   margin: 4px 0;
 }
 </style>

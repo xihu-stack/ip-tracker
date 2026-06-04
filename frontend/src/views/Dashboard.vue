@@ -7,12 +7,12 @@
 
     <el-row :gutter="16">
       <el-col :span="6" v-for="item in statCards" :key="item.label">
-        <div class="stat-card" :style="{ '--card-accent': item.color }">
-          <div class="stat-icon-wrap">
-            <el-icon :size="22"><component :is="item.icon" /></el-icon>
+        <div class="stat-card" :style="{ '--card-accent': item.color, '--card-bg': item.bg }">
+          <div class="stat-icon-wrap" :style="{ background: item.bg }">
+            <el-icon :size="22" :style="{ color: item.color }"><component :is="item.icon" /></el-icon>
           </div>
           <div class="stat-info">
-            <div class="stat-value">{{ item.value }}</div>
+            <div class="stat-value" :style="{ color: item.color }">{{ item.value }}</div>
             <div class="stat-label">{{ item.label }}</div>
           </div>
         </div>
@@ -30,7 +30,7 @@
           <el-table :data="recentEmployees.filter(e => e.is_online)" stripe empty-text="暂无在线设备" max-height="360">
             <el-table-column label="设备" min-width="140">
               <template #default="{ row }">
-                <span v-if="row.name" class="emp-name">{{ row.name }} <span class="sub-text">({{ row.hostname }})</span></span>
+                <span v-if="row.name">{{ row.name }} <span class="sub-text">({{ row.hostname }})</span></span>
                 <span v-else>{{ row.hostname }}</span>
               </template>
             </el-table-column>
@@ -55,7 +55,7 @@
           <el-table :data="offlineList" stripe empty-text="所有设备正常" max-height="360">
             <el-table-column label="设备" min-width="140">
               <template #default="{ row }">
-                <span v-if="row.name" class="emp-name">{{ row.name }} <span class="sub-text">({{ row.hostname }})</span></span>
+                <span v-if="row.name">{{ row.name }} <span class="sub-text">({{ row.hostname }})</span></span>
                 <span v-else>{{ row.hostname }}</span>
               </template>
             </el-table-column>
@@ -98,10 +98,10 @@ const mapChart = ref(null)
 let chartInstance = null
 
 const statCards = computed(() => [
-  { label: '设备总数', value: stats.value.total_employees, color: '#00e5ff', icon: 'Monitor' },
-  { label: '当前在线', value: stats.value.online_count, color: '#22c55e', icon: 'Connection' },
-  { label: '离线设备', value: stats.value.offline_count, color: '#ef4444', icon: 'Warning' },
-  { label: '今日上报', value: stats.value.day_records, color: '#f59e0b', icon: 'DataLine' },
+  { label: '设备总数', value: stats.value.total_employees, color: '#2563eb', bg: '#eff6ff', icon: 'Monitor' },
+  { label: '当前在线', value: stats.value.online_count, color: '#16a34a', bg: '#f0fdf4', icon: 'Connection' },
+  { label: '离线设备', value: stats.value.offline_count, color: '#dc2626', bg: '#fef2f2', icon: 'Warning' },
+  { label: '今日上报', value: stats.value.day_records, color: '#d97706', bg: '#fffbeb', icon: 'DataLine' },
 ])
 
 async function initMap(mapData) {
@@ -121,10 +121,10 @@ async function initMap(mapData) {
   chartInstance.setOption({
     tooltip: {
       trigger: 'item',
-      backgroundColor: 'rgba(8,14,32,0.95)',
-      borderColor: '#00e5ff',
+      backgroundColor: 'rgba(255,255,255,0.96)',
+      borderColor: '#e2e8f0',
       borderWidth: 1,
-      textStyle: { color: '#e0f0ff' },
+      textStyle: { color: '#1e293b', fontSize: 13 },
       confine: true,
       formatter(params) {
         if (params.seriesType === 'effectScatter') {
@@ -133,7 +133,7 @@ async function initMap(mapData) {
           const emps = d.employees.length > maxShow
             ? d.employees.slice(0, maxShow).join('、') + ` 等${d.employees.length}台`
             : d.employees.join('、')
-          return `<div style="max-width:260px;word-break:break-all"><b style="color:#00e5ff">${d.name}</b><br/>设备数量：${d.value[2]} 台<br/>设备：${emps}</div>`
+          return `<div style="max-width:280px;word-break:break-all"><b style="color:#2563eb">${d.name}</b><br/>设备数量：${d.value[2]} 台<br/>设备：${emps}</div>`
         }
         return params.name
       }
@@ -143,27 +143,27 @@ async function initMap(mapData) {
       roam: true,
       zoom: 1.2,
       center: [104, 36],
-      itemStyle: { areaColor: '#0d1b2a', borderColor: '#1b3a5c', borderWidth: 1 },
-      emphasis: { itemStyle: { areaColor: '#1a3352' }, label: { show: true, color: '#7ec8e3', fontSize: 10 } },
-      label: { show: true, color: 'rgba(120,160,200,0.35)', fontSize: 9 }
+      itemStyle: { areaColor: '#e8edf5', borderColor: '#c8d3e3', borderWidth: 0.8 },
+      emphasis: { itemStyle: { areaColor: '#dbe4f0' }, label: { show: true, color: '#475569', fontSize: 10 } },
+      label: { show: true, color: 'rgba(71,85,105,0.5)', fontSize: 9 }
     },
     series: [
       {
         type: 'effectScatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize: 16,
-        rippleEffect: { brushType: 'stroke', scale: 4, period: 3 },
-        itemStyle: { color: '#00e5ff', shadowBlur: 20, shadowColor: 'rgba(0, 229, 255, 0.6)' },
+        symbolSize: 14,
+        rippleEffect: { brushType: 'stroke', scale: 3, period: 3 },
+        itemStyle: { color: '#2563eb', shadowBlur: 12, shadowColor: 'rgba(37, 99, 235, 0.4)' },
         label: {
           show: true,
           formatter(p) { return `${p.name}\n${p.value[2]}台` },
           position: 'right',
-          color: '#ffffff',
-          fontSize: 12,
+          color: '#1e293b',
+          fontSize: 11,
           fontWeight: 'bold',
-          lineHeight: 18,
-          textBorderColor: '#000000',
+          lineHeight: 16,
+          textBorderColor: '#ffffff',
           textBorderWidth: 2
         }
       }
@@ -192,16 +192,12 @@ onMounted(loadData)
   gap: 12px;
   margin-bottom: 20px;
 }
-.page-header h2 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-}
+.page-header h2 { margin: 0; font-size: 20px; font-weight: 600; }
 .live-badge {
   font-size: 11px;
   color: var(--success);
-  background: rgba(34,197,94,0.1);
-  border: 1px solid rgba(34,197,94,0.2);
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
   padding: 2px 10px;
   border-radius: 10px;
   font-family: 'Courier New', monospace;
@@ -215,42 +211,26 @@ onMounted(loadData)
 
 /* 统计卡片 */
 .stat-card {
-  background: var(--bg-card);
+  background: #fff;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 20px;
   display: flex;
   align-items: center;
   gap: 16px;
-  transition: all 0.3s;
-  position: relative;
-  overflow: hidden;
-}
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--card-accent), transparent);
-  opacity: 0.5;
+  transition: all 0.2s;
 }
 .stat-card:hover {
-  border-color: rgba(0,229,255,0.15);
-  box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
   transform: translateY(-1px);
 }
 .stat-icon-wrap {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: rgba(0,229,255,0.06);
-  border: 1px solid rgba(0,229,255,0.08);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--card-accent);
   flex-shrink: 0;
 }
 .stat-value {
@@ -258,7 +238,6 @@ onMounted(loadData)
   font-weight: 700;
   line-height: 1;
   font-family: 'Courier New', monospace;
-  color: var(--card-accent);
 }
 .stat-label {
   font-size: 13px;
@@ -274,23 +253,10 @@ onMounted(loadData)
   font-weight: 600;
   font-size: 14px;
 }
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-.dot-green {
-  background: var(--success);
-  box-shadow: 0 0 6px rgba(34,197,94,0.5);
-}
-.dot-red {
-  background: var(--danger);
-  box-shadow: 0 0 6px rgba(239,68,68,0.5);
-}
-.dot-blue {
-  background: var(--accent);
-  box-shadow: 0 0 6px rgba(0,229,255,0.5);
-}
+.dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot-green { background: var(--success); }
+.dot-red { background: var(--danger); }
+.dot-blue { background: var(--accent); }
 
 .sub-text { color: var(--text-muted); font-size: 12px; }
 </style>

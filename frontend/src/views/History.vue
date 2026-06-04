@@ -89,20 +89,17 @@ onMounted(loadEmployeeList)
 }
 .date-input {
   height: 32px;
-  border: 1px solid var(--border-color);
+  border: 1px solid #dcdfe6;
   border-radius: 4px;
   padding: 0 10px;
-  color: var(--text-primary);
-  background: var(--bg-input);
+  color: #606266;
   font-size: 14px;
-}
-.date-input::-webkit-calendar-picker-indicator {
-  filter: invert(0.7);
+  background: #fff;
 }
 .pagination-wrap {
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
 }
-.text-muted { color: var(--text-muted); }
+.text-muted { color: #909399; }
 </style>

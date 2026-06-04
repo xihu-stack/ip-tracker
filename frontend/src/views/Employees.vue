@@ -147,5 +147,5 @@ onMounted(loadData)
   justify-content: flex-end;
   margin-top: 16px;
 }
-.text-muted { color: var(--text-muted); }
+.text-muted { color: #909399; }
 </style>

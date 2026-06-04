@@ -42,14 +42,18 @@ def report(data: ReportRequest, db: Session = Depends(get_db)):
     # 每次上报都更新 last_seen_at（用于在线状态判断）
     employee.last_seen_at = datetime.now()
 
-    # 优先使用客户端传来的城市和经纬度，没有则服务端查询
+    # 始终使用服务端查询（支持区级精度），客户端传来的仅作备用
     city = data.city
     latitude = data.lat
     longitude = data.lon
 
-    if not city or city == "":
-        location = ip_to_city(data.ip)
+    location = ip_to_city(data.ip)
+    if location.get("city") and location["city"] != "未知":
         city = location["city"]
+        latitude = location.get("lat")
+        longitude = location.get("lon")
+    elif not city or city == "":
+        city = location.get("city", "未知")
         latitude = location.get("lat")
         longitude = location.get("lon")
 
