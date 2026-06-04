@@ -4,8 +4,8 @@
 
     <el-card style="margin-bottom: 16px">
       <template #header><b>系统简介</b></template>
-      <p style="line-height: 1.8; margin: 0">
-        本平台用于收集和管理员工电脑的公网 IP 地址，通过 IP 自动解析出所在城市并在地图上标注，方便 IT 管理人员了解员工电脑的网络接入位置。
+      <p class="guide-text">
+        本平台用于收集和管理员工电脑的公网 IP 地址，通过 IP 自动解析出所在城市（支持精确到区级）并在地图上标注，方便 IT 管理人员了解员工电脑的网络接入位置。
       </p>
     </el-card>
 
@@ -17,7 +17,11 @@
             <el-tag :type="row.tag" size="large">{{ row.name }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="desc" />
+        <el-table-column>
+          <template #default="{ row }">
+            <span class="guide-text">{{ row.desc }}</span>
+          </template>
+        </el-table-column>
       </el-table>
     </el-card>
 
@@ -42,12 +46,12 @@
           </el-step>
           <el-step title="IP 解析">
             <template #description>
-              服务器收到 IP 后，通过 ip-api.com 在线查询解析出省份、城市和经纬度信息
+              服务器收到 IP 后，通过 ip-api.com 在线查询解析出省份、城市、区县和经纬度信息
             </template>
           </el-step>
           <el-step title="管理查询">
             <template #description>
-              管理员通过前台页面查看设备在线状态、地图分布、历史 IP 记录，并可编辑员工姓名
+              管理员通过前台页面查看设备在线状态、地图分布、历史 IP 记录，并可编辑员工姓名或删除已离职员工
             </template>
           </el-step>
         </el-steps>
@@ -77,32 +81,32 @@
       <el-timeline>
         <el-timeline-item type="primary" :hollow="false">
           <b>确认配置</b>
-          <p style="color: #909399; margin: 4px 0">打开 <code>deploy.ps1</code>，确认第 17 行的 <code>SERVER_URL</code> 为实际服务器地址</p>
+          <p class="step-desc">打开 <code>deploy.ps1</code>，确认第 17 行的 <code>SERVER_URL</code> 为实际服务器地址</p>
         </el-timeline-item>
         <el-timeline-item type="primary" :hollow="false">
           <b>创建软件包</b>
-          <p style="color: #909399; margin: 4px 0">IP-guard 控制台 → 软件分发 → 新建软件包，分发模式选择 <b>执行程序</b></p>
+          <p class="step-desc">IP-guard 控制台 → 软件分发 → 新建软件包，分发模式选择 <b>执行程序</b></p>
         </el-timeline-item>
         <el-timeline-item type="primary" :hollow="false">
           <b>添加文件</b>
-          <p style="color: #909399; margin: 4px 0">点击新增，选择 <code>deploy.ps1</code></p>
+          <p class="step-desc">点击新增，选择 <code>deploy.ps1</code></p>
         </el-timeline-item>
         <el-timeline-item type="primary" :hollow="false">
           <b>设置命令行</b>
-          <p style="color: #909399; margin: 4px 0">
+          <p class="step-desc">
             <code style="word-break: break-all">powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File deploy.ps1</code>
           </p>
         </el-timeline-item>
         <el-timeline-item type="primary" :hollow="false">
           <b>运行模式</b>
-          <p style="color: #909399; margin: 4px 0"><b>不勾选</b>"以当前登录用户身份运行"（以 SYSTEM 身份执行，权限更高）</p>
+          <p class="step-desc"><b>不勾选</b>"以当前登录用户身份运行"（以 SYSTEM 身份执行，权限更高）</p>
         </el-timeline-item>
         <el-timeline-item type="primary" :hollow="false">
           <b>选择目标电脑 → 执行</b>
         </el-timeline-item>
         <el-timeline-item type="success" :hollow="false">
           <b>验证</b>
-          <p style="color: #909399; margin: 4px 0">刷新前台页面，仪表盘或员工列表中出现新设备即为部署成功。在员工列表点击"编辑"可填写员工姓名。</p>
+          <p class="step-desc">刷新前台页面，仪表盘或员工列表中出现新设备即为部署成功。在员工列表点击"编辑"可填写员工姓名。</p>
         </el-timeline-item>
       </el-timeline>
     </el-card>
@@ -112,11 +116,11 @@
       <el-timeline>
         <el-timeline-item type="danger" :hollow="false">
           <b>推送卸载脚本</b>
-          <p style="color: #909399; margin: 4px 0">通过 IP-guard 推送 <code>uninstall.ps1</code>，命令行：<code>powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File uninstall.ps1</code>，同样不勾选"以当前登录用户身份运行"</p>
+          <p class="step-desc">通过 IP-guard 推送 <code>clean_all_fixed.bat</code>，命令行：<code>powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File clean_all_fixed.bat</code>，同样不勾选"以当前登录用户身份运行"</p>
         </el-timeline-item>
         <el-timeline-item type="danger" :hollow="false">
           <b>卸载内容</b>
-          <p style="color: #909399; margin: 4px 0">删除计划任务 <code>Company_IP_Tracker</code>、安装目录 <code>C:\ProgramData\Company_Network</code> 及所有日志文件</p>
+          <p class="step-desc">删除计划任务 <code>Company_IP_Tracker</code>、安装目录 <code>C:\ProgramData\Company_Network</code> 及所有日志文件</p>
         </el-timeline-item>
       </el-timeline>
     </el-card>
@@ -136,7 +140,7 @@
 
     <el-card>
       <template #header><b>数据去重规则</b></template>
-      <p style="line-height: 1.8; margin: 0; color: #606266">
+      <p class="guide-text">
         同一员工、同一 IP 地址，<b>1 小时内</b>不会重复记录。例如员工电脑每 10 分钟上报一次，
         如果 IP 没变，服务器只会记录一次，不会产生冗余数据。只有当 IP 发生变化（如切换网络、
         移动办公）时才会新增一条记录。
@@ -165,3 +169,15 @@ const fileList = ref([
   { file: '计划任务: Company_IP_Tracker', desc: 'SYSTEM 级计划任务，每 10 分钟执行一次，开机即运行', visible: '否' },
 ])
 </script>
+
+<style scoped>
+.guide-text {
+  line-height: 1.8;
+  margin: 0;
+  color: var(--text-secondary);
+}
+.step-desc {
+  color: var(--text-muted);
+  margin: 4px 0;
+}
+</style>

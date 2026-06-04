@@ -2,13 +2,13 @@
   <div>
     <h2 style="margin-bottom: 20px">IP 历史查询</h2>
     <el-card>
-      <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap">
+      <div class="filter-bar">
         <el-select v-model="selectedEmployee" placeholder="选择员工" filterable style="width: 280px" @change="loadRecords">
           <el-option v-for="emp in employeeList" :key="emp.id" :label="emp.name ? emp.name + ' (' + emp.hostname + ')' : emp.hostname" :value="emp.id" />
         </el-select>
-        <input type="date" v-model="startDate" @change="loadRecords" style="height: 32px; border: 1px solid #dcdfe6; border-radius: 4px; padding: 0 10px; color: #606266; font-size: 14px" />
-        <span style="color: #909399">至</span>
-        <input type="date" v-model="endDate" @change="loadRecords" style="height: 32px; border: 1px solid #dcdfe6; border-radius: 4px; padding: 0 10px; color: #606266; font-size: 14px" />
+        <input type="date" v-model="startDate" @change="loadRecords" class="date-input" />
+        <span class="text-muted">至</span>
+        <input type="date" v-model="endDate" @change="loadRecords" class="date-input" />
         <el-button type="primary" @click="loadRecords">查询</el-button>
       </div>
 
@@ -18,7 +18,7 @@
         <el-table-column prop="city" label="所在城市" />
       </el-table>
 
-      <div style="display: flex; justify-content: flex-end; margin-top: 16px">
+      <div class="pagination-wrap">
         <el-pagination
           v-model:current-page="page"
           v-model:page-size="pageSize"
@@ -78,3 +78,31 @@ async function loadRecords() {
 
 onMounted(loadEmployeeList)
 </script>
+
+<style scoped>
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.date-input {
+  height: 32px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0 10px;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  font-size: 14px;
+}
+.date-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+}
+.pagination-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.text-muted { color: var(--text-muted); }
+</style>

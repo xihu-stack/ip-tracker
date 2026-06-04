@@ -2,7 +2,7 @@
   <div>
     <h2 style="margin-bottom: 20px">员工列表</h2>
     <el-card>
-      <div style="display: flex; justify-content: space-between; margin-bottom: 16px">
+      <div class="toolbar">
         <el-input v-model="search" placeholder="搜索主机名或姓名" style="width: 300px" clearable @clear="loadData" @keyup.enter="loadData">
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
@@ -13,7 +13,7 @@
         <el-table-column label="员工姓名" width="140">
           <template #default="{ row }">
             <span v-if="row.name">{{ row.name }}</span>
-            <span v-else style="color: #c0c4cc">-</span>
+            <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
         <el-table-column prop="hostname" label="主机名" />
@@ -40,7 +40,7 @@
         </el-table-column>
       </el-table>
 
-      <div style="display: flex; justify-content: flex-end; margin-top: 16px">
+      <div class="pagination-wrap">
         <el-pagination
           v-model:current-page="page"
           v-model:page-size="pageSize"
@@ -135,3 +135,17 @@ async function handleDelete(row) {
 
 onMounted(loadData)
 </script>
+
+<style scoped>
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.pagination-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.text-muted { color: var(--text-muted); }
+</style>

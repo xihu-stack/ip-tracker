@@ -5,21 +5,21 @@
       <span class="live-badge">● LIVE</span>
     </div>
 
-    <el-row :gutter="20">
+    <el-row :gutter="16">
       <el-col :span="6" v-for="item in statCards" :key="item.label">
-        <div class="stat-card" :style="{ borderColor: item.color + '33' }">
-          <div class="stat-icon" :style="{ color: item.color, boxShadow: '0 0 20px ' + item.color + '22' }">
-            <el-icon :size="24"><component :is="item.icon" /></el-icon>
+        <div class="stat-card" :style="{ '--card-accent': item.color }">
+          <div class="stat-icon-wrap">
+            <el-icon :size="22"><component :is="item.icon" /></el-icon>
           </div>
           <div class="stat-info">
-            <div class="stat-value" :style="{ color: item.color }">{{ item.value }}</div>
+            <div class="stat-value">{{ item.value }}</div>
             <div class="stat-label">{{ item.label }}</div>
           </div>
         </div>
       </el-col>
     </el-row>
 
-    <el-row :gutter="20" style="margin-top: 20px">
+    <el-row :gutter="16" style="margin-top: 16px">
       <el-col :span="12">
         <el-card>
           <template #header>
@@ -30,7 +30,7 @@
           <el-table :data="recentEmployees.filter(e => e.is_online)" stripe empty-text="暂无在线设备" max-height="360">
             <el-table-column label="设备" min-width="140">
               <template #default="{ row }">
-                <span v-if="row.name">{{ row.name }} <span class="sub-text">({{ row.hostname }})</span></span>
+                <span v-if="row.name" class="emp-name">{{ row.name }} <span class="sub-text">({{ row.hostname }})</span></span>
                 <span v-else>{{ row.hostname }}</span>
               </template>
             </el-table-column>
@@ -55,7 +55,7 @@
           <el-table :data="offlineList" stripe empty-text="所有设备正常" max-height="360">
             <el-table-column label="设备" min-width="140">
               <template #default="{ row }">
-                <span v-if="row.name">{{ row.name }} <span class="sub-text">({{ row.hostname }})</span></span>
+                <span v-if="row.name" class="emp-name">{{ row.name }} <span class="sub-text">({{ row.hostname }})</span></span>
                 <span v-else>{{ row.hostname }}</span>
               </template>
             </el-table-column>
@@ -75,7 +75,7 @@
     </el-row>
 
     <!-- 中国地图 -->
-    <el-card style="margin-top: 20px">
+    <el-card style="margin-top: 16px">
       <template #header>
         <div class="card-title">
           <span class="dot dot-blue"></span> 设备分布地图
@@ -98,10 +98,10 @@ const mapChart = ref(null)
 let chartInstance = null
 
 const statCards = computed(() => [
-  { label: '设备总数', value: stats.value.total_employees, color: '#409EFF', icon: 'Monitor' },
-  { label: '当前在线', value: stats.value.online_count, color: '#67C23A', icon: 'Connection' },
-  { label: '离线设备', value: stats.value.offline_count, color: '#F56C6C', icon: 'Warning' },
-  { label: '今日上报', value: stats.value.day_records, color: '#E6A23C', icon: 'DataLine' },
+  { label: '设备总数', value: stats.value.total_employees, color: '#00e5ff', icon: 'Monitor' },
+  { label: '当前在线', value: stats.value.online_count, color: '#22c55e', icon: 'Connection' },
+  { label: '离线设备', value: stats.value.offline_count, color: '#ef4444', icon: 'Warning' },
+  { label: '今日上报', value: stats.value.day_records, color: '#f59e0b', icon: 'DataLine' },
 ])
 
 async function initMap(mapData) {
@@ -121,7 +121,7 @@ async function initMap(mapData) {
   chartInstance.setOption({
     tooltip: {
       trigger: 'item',
-      backgroundColor: 'rgba(8,14,32,0.92)',
+      backgroundColor: 'rgba(8,14,32,0.95)',
       borderColor: '#00e5ff',
       borderWidth: 1,
       textStyle: { color: '#e0f0ff' },
@@ -190,19 +190,19 @@ onMounted(loadData)
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 .page-header h2 {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
-  color: #303133;
 }
 .live-badge {
   font-size: 11px;
-  color: #67C23A;
-  background: rgba(103,194,58,0.1);
-  padding: 2px 8px;
+  color: var(--success);
+  background: rgba(34,197,94,0.1);
+  border: 1px solid rgba(34,197,94,0.2);
+  padding: 2px 10px;
   border-radius: 10px;
   font-family: 'Courier New', monospace;
   letter-spacing: 2px;
@@ -215,40 +215,55 @@ onMounted(loadData)
 
 /* 统计卡片 */
 .stat-card {
-  background: #fff;
-  border: 1px solid #ebeef5;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 24px;
+  padding: 20px;
   display: flex;
   align-items: center;
   gap: 16px;
   transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--card-accent), transparent);
+  opacity: 0.5;
 }
 .stat-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(0, 212, 255, 0.15);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  border-color: rgba(0,229,255,0.15);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  transform: translateY(-1px);
 }
-.stat-icon {
-  width: 52px;
-  height: 52px;
+.stat-icon-wrap {
+  width: 48px;
+  height: 48px;
   border-radius: 12px;
-  background: rgba(0, 212, 255, 0.04);
+  background: rgba(0,229,255,0.06);
+  border: 1px solid rgba(0,229,255,0.08);
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--card-accent);
   flex-shrink: 0;
 }
 .stat-value {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
   line-height: 1;
   font-family: 'Courier New', monospace;
+  color: var(--card-accent);
 }
 .stat-label {
   font-size: 13px;
-  color: #909399;
-  margin-top: 6px;
+  color: var(--text-muted);
+  margin-top: 4px;
 }
 
 /* 卡片标题 */
@@ -257,11 +272,25 @@ onMounted(loadData)
   align-items: center;
   gap: 8px;
   font-weight: 600;
+  font-size: 14px;
 }
-.dot { width: 8px; height: 8px; border-radius: 50%; }
-.dot-green { background: #67C23A; }
-.dot-red { background: #F56C6C; }
-.dot-blue { background: #409EFF; }
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.dot-green {
+  background: var(--success);
+  box-shadow: 0 0 6px rgba(34,197,94,0.5);
+}
+.dot-red {
+  background: var(--danger);
+  box-shadow: 0 0 6px rgba(239,68,68,0.5);
+}
+.dot-blue {
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(0,229,255,0.5);
+}
 
-.sub-text { color: #909399; font-size: 12px; }
+.sub-text { color: var(--text-muted); font-size: 12px; }
 </style>
