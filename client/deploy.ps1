@@ -71,10 +71,14 @@ $lines = @(
 [System.IO.File]::WriteAllLines($scriptPath, $lines, [System.Text.Encoding]::UTF8)
 Write-DeployLog "常驻脚本已写入: $scriptPath"
 
-# 2. 创建计划任务 (以 SYSTEM 账户非交互运行)
+# 2. 创建计划任务 (以 SYSTEM 账户非交互运行，无条件执行)
 schtasks /Delete /TN $TASK_NAME /F 2>$null | Out-Null
-$taskResult = schtasks /Create /TN $TASK_NAME /TR "powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$scriptPath`"" /SC MINUTE /MO 10 /RU "SYSTEM" /F 2>&1
-Write-DeployLog "计划任务配置结果: $taskResult"
+# 用 PowerShell 创建任务，绕过 schtasks 不支持高级设置的限制
+$Action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$scriptPath`""
+$Trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 10)
+$Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -DontStopOnIdleEnd -ExecutionTimeLimit (New-TimeSpan -Minutes 5)
+Register-ScheduledTask -TaskName $TASK_NAME -Action $Action -Trigger $Trigger -Settings $Settings -User "SYSTEM" -Force | Out-Null
+Write-DeployLog "计划任务配置完成（不受电源/空闲限制，错过即补跑）"
 
 # 3. 执行首次上报
 Write-DeployLog "正在执行首次同步上报..."
