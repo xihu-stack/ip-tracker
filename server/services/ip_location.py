@@ -23,10 +23,14 @@ def _query_cip_cc(ip: str):
         数据三\t: 中国 江苏省 南京市
     地址行通常是短名，优先用；拿不到城市时回退到数据三行。
     """
-    url = f"http://cip.cc/{ip}"
-    req = urllib.request.Request(url, headers={"User-Agent": "curl/8.4.0"})
-    with urllib.request.urlopen(req, timeout=5) as resp:
-        text = resp.read().decode("utf-8", errors="ignore")
+    try:
+        url = f"http://cip.cc/{ip}"
+        req = urllib.request.Request(url, headers={"User-Agent": "curl/8.4.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            text = resp.read().decode("utf-8", errors="ignore")
+    except Exception:
+        # 网络错误 / 503 限流 / 超时等：返回 None，上层记为"未知"，绝不抛异常
+        return None
 
     def _parts_of(line_prefix: str):
         for line in text.splitlines():

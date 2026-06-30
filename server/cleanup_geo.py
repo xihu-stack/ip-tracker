@@ -45,11 +45,14 @@ def main():
                 db.commit()
                 ok += 1
                 print(f"[{i}/{len(ips)}] {ip} -> {loc['city']}")
+                time.sleep(1.2)    # 对 cip.cc 友好，避免触发限流
             else:
                 fail += 1
-                print(f"[{i}/{len(ips)}] {ip} -> 查询失败，跳过（保留原值）")
-            time.sleep(0.4)
+                print(f"[{i}/{len(ips)}] {ip} -> 查询失败/被限流，跳过（保留原值）")
+                time.sleep(4)      # cip.cc 可能限流，多等一会再继续
         print(f"\n完成：成功修正 {ok}，失败 {fail}")
+        if fail:
+            print("提示：失败的多数是 cip.cc 限流，过几分钟重跑一次本脚本即可补上（新进程会重新查询所有 IP）。")
     finally:
         db.close()
 
