@@ -33,20 +33,19 @@
 # 1. 克隆项目
 git clone https://github.com/xihu-stack/ip-tracker.git
 
-# 2. 一键部署（默认 8000 端口）
-cd -ip-tracker
+# 2. 一键部署
+cd ip-tracker
 sudo bash install.sh
 ```
 
-自定义端口：
+部署采用**双端口架构**：
 
-```bash
-sudo bash install.sh 9000    # 使用 9000 端口
-```
+- **8000**：管理后台（内网访问，登录 / 仪表盘 / 地图）
+- **9000**：客户端上报接口（公网，Nginx 仅放行 `/api/report`，其余路径一律返回 403）
 
-脚本会自动完成：安装 Python → 复制文件 → 创建虚拟环境 → 安装依赖 → 配置 systemd 开机自启 → 启动服务。
+脚本会自动完成：安装 Python → 复制文件 → 创建虚拟环境 → 安装依赖 → 配置 systemd + Nginx → 启动服务。
 
-部署完成后访问 `http://<服务器IP>:8000` 即可看到管理界面。
+部署完成后，在内网访问 `http://<服务器IP>:8000` 即可看到管理界面。
 
 ### 服务管理
 
@@ -59,13 +58,17 @@ journalctl -u ip-tracker -f     # 查看实时日志
 
 ### 防火墙放行
 
+8000 = 管理后台（建议仅对内网开放）；9000 = 客户端上报口（公网需放行）。
+
 ```bash
 # CentOS / RHEL
 sudo firewall-cmd --permanent --add-port=8000/tcp
+sudo firewall-cmd --permanent --add-port=9000/tcp
 sudo firewall-cmd --reload
 
 # Ubuntu
 sudo ufw allow 8000/tcp
+sudo ufw allow 9000/tcp
 ```
 
 ## 前端重新构建
