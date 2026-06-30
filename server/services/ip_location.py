@@ -1,3 +1,4 @@
+import json
 import time
 import urllib.request
 
@@ -8,20 +9,18 @@ except ImportError:  # 兼容直接以模块方式运行（如一次性脚本）
 
 
 _cache = {}
-_SUCCESS_TTL = 3600   # 成功结果缓存 1 小时
+_SUCCESS_TTL = 3600   # 成功结果缓存 1 小时（同一 IP 期间不再请求外部）
 _FAILURE_TTL = 300    # 失败结果只缓存 5 分钟，便于尽快重试
 
-# 地址行里可能出现、但不属于地名/省份的噪音词
 _COUNTRY_TOKENS = {"中国", "China", "china", "PRC"}
 
 
 def _query_cip_cc(ip: str):
-    """通过 cip.cc 查询 IP 归属地，返回 (province, city)；查询失败返回 None。
+    """数据源 1：cip.cc，文本格式，免 key。返回 (province, city) 或 None。
 
-    cip.cc 文本格式示例：
+    格式示例：
         地址\t: 中国 江苏 南京
         数据三\t: 中国 江苏省 南京市
-    地址行通常是短名，优先用；拿不到城市时回退到数据三行。
     """
     try:
         url = f"http://cip.cc/{ip}"
@@ -29,33 +28,29 @@ def _query_cip_cc(ip: str):
         with urllib.request.urlopen(req, timeout=5) as resp:
             text = resp.read().decode("utf-8", errors="ignore")
     except Exception:
-        # 网络错误 / 503 限流 / 超时等：返回 None，上层记为"未知"，绝不抛异常
+        # 网络错误 / 503 限流 / 超时等：交由后续数据源兜底
         return None
 
     def _parts_of(line_prefix: str):
         for line in text.splitlines():
             if line_prefix in line and ":" in line:
                 val = line.split(":", 1)[1].strip()
-                parts = [p for p in val.split() if p and p not in _COUNTRY_TOKENS]
-                return parts
+                return [p for p in val.split() if p and p not in _COUNTRY_TOKENS]
         return []
 
     province = ""
     city = ""
-
     addr = _parts_of("地址")
     if addr:
         province = addr[0]
         if len(addr) > 1:
             city = addr[1]
-
     if not city:
         data3 = _parts_of("数据三")
         if data3:
             province = data3[0]
             if len(data3) > 1:
                 city = data3[1]
-
     if not province and not city:
         return None
     if not city:
@@ -63,8 +58,48 @@ def _query_cip_cc(ip: str):
     return province, city
 
 
+def _query_pconline(ip: str):
+    """数据源 2：太平洋 pconline，JSON 格式，免 key。返回 (province, city) 或 None。
+
+    返回示例：{"pro":"江苏省","city":"南京市","addr":"江苏省南京市 电信","err":""}
+    """
+    try:
+        url = f"https://whois.pconline.com.cn/ipJson.jsp?ip={ip}&json=true"
+        req = urllib.request.Request(url, headers={"User-Agent": "IPTracker/1.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            text = resp.read().decode("utf-8", errors="ignore")
+        data = json.loads(text)
+        if data.get("err"):
+            return None
+        province = (data.get("pro") or "").replace("省", "").replace("市", "")
+        city = (data.get("city") or "").replace("市", "")
+        if not province and not city:
+            return None
+        if not city:
+            city = province
+        return province, city
+    except Exception:
+        return None
+
+
+# 数据源顺序：前面的优先；任一被限流/失败时自动尝试后面的。要加更多源，往这里加一个函数即可。
+_SOURCES = (_query_cip_cc, _query_pconline)
+
+
+def _resolve(ip: str):
+    """依次尝试多个数据源，第一个成功的结果即返回；全部失败返回 None。"""
+    for fn in _SOURCES:
+        try:
+            geo = fn(ip)
+        except Exception:
+            geo = None
+        if geo:
+            return geo
+    return None
+
+
 def ip_to_city(ip: str) -> dict:
-    """查询 IP 归属地：先查 cip.cc，再用城市坐标表补经纬度。返回 {city, lat, lon}。"""
+    """查询 IP 归属地：多源轮询，再用城市坐标表补经纬度。返回 {city, lat, lon}。"""
     now = time.time()
 
     cached = _cache.get(ip)
@@ -73,7 +108,7 @@ def ip_to_city(ip: str) -> dict:
         if now - cached.get("_time", 0) < ttl:
             return cached
 
-    geo = _query_cip_cc(ip)
+    geo = _resolve(ip)
     if geo:
         province, city = geo
         label = city if (not province or province == city) else f"{province}-{city}"
