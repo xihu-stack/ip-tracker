@@ -79,7 +79,7 @@ def list_employees(
     for emp in employees:
         latest = db.query(IpRecord).filter(IpRecord.employee_id == emp.id).order_by(IpRecord.reported_at.desc()).first()
         threshold = datetime.now() - timedelta(minutes=20)
-        is_online = emp.last_seen_at and emp.last_seen_at >= ten_min_ago
+        is_online = emp.last_seen_at and emp.last_seen_at >= threshold
         result.append({
             "id": emp.id,
             "hostname": emp.hostname,
