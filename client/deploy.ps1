@@ -14,8 +14,9 @@ function Write-DeployLog($msg) {
 }
 Write-DeployLog "=== deploy.ps1 开始执行 ==="
 
-# 内网部署用 8000 端口，公网部署改为 9000 端口
-$SERVER_URL = "http://112.81.86.182:9000/api/report"
+# 上报地址用域名：以后换服务器只需改 DNS 解析，客户端无需重新推送
+# 内网部署用 8000 端口，公网部署用 9000 端口
+$SERVER_URL = "http://iptracker.huashen.bio:9000/api/report"
 $TASK_NAME = "Company_IP_Tracker"
 
 # 统一使用标准的公共本地路径，避免 SYSTEM 账户与普通用户 AppData 错位
@@ -73,6 +74,10 @@ Write-DeployLog "常驻脚本已写入: $scriptPath"
 
 # 2. 创建计划任务 (以 SYSTEM 账户非交互运行，无条件执行)
 schtasks /Delete /TN $TASK_NAME /F 2>$null | Out-Null
+# 清理旧版本遗留的历史任务名，避免新旧任务并存（早期版本曾用 IPTrackerReport）
+foreach ($legacy in @("IPTrackerReport")) {
+    schtasks /Delete /TN $legacy /F 2>$null | Out-Null
+}
 # 用 PowerShell 创建任务，绕过 schtasks 不支持高级设置的限制
 $Action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File `"$scriptPath`""
 $Trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 10)

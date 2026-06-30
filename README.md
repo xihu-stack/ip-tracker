@@ -9,11 +9,13 @@
 │   ├── main.py             # 入口，挂载静态文件
 │   ├── database.py         # SQLAlchemy + SQLite 配置
 │   ├── models.py           # ORM 模型
+│   ├── cleanup_geo.py      # 历史归属地批量修正脚本（一次性）
 │   ├── routers/
 │   │   ├── report.py       # 客户端上报接口
 │   │   └── query.py        # 查询接口（仪表盘、员工、地图）
 │   └── services/
-│       └── ip_location.py  # IP → 城市/经纬度查询
+│       ├── ip_location.py  # IP → 城市（cip.cc 数据源）
+│       └── city_coords.py  # 中国城市经纬度对照表
 ├── frontend/               # Vue 3 + Element Plus 前端
 │   ├── src/                # 源码
 │   └── dist/               # 构建产物（已提交，可直接部署）
@@ -87,10 +89,11 @@ npm run build
 1. 从服务器下载脚本：`http://<服务器IP>:8000` 页面中有部署指引
 2. 或直接使用仓库中的 `client/deploy.ps1`
 
-修改 `deploy.ps1` 中的服务器地址：
+修改 `deploy.ps1` 中的上报地址。**建议用域名**（以后换服务器只改 DNS 解析，客户端无需重新推送），并指向公网上报口：
 
 ```powershell
-$SERVER_URL = "http://<你的服务器IP>:8000/api/report"
+# 内网 8000 = 管理后台；公网 9000 = 客户端上报接口（仅放行 /api/report）
+$SERVER_URL = "http://report.example.com:9000/api/report"
 ```
 
 以管理员身份运行：
@@ -111,6 +114,19 @@ schtasks /Delete /TN "Company_IP_Tracker" /F
 Remove-Item "C:\ProgramData\Company_Network" -Recurse -Force
 ```
 
+## 定位数据源
+
+服务器根据客户端上报的**公网 IP** 统一解析归属地（客户端传来的位置仅作备用）：
+
+- **城市/区**：通过 [cip.cc](http://cip.cc) 查询，国内精确、无需 key。
+- **经纬度**：由内置的中国城市经纬度对照表（`server/services/city_coords.py`）按城市给出，地图按城市打点。
+
+切换数据源后，如需把历史记录的归属地也修正过来，在服务器上运行：
+
+```bash
+cd /opt/ip-tracker && python3 cleanup_geo.py   # 只更新 city/经纬度，不删历史记录
+```
+
 ## API 接口
 
 | 方法 | 路径 | 说明 |
@@ -127,3 +143,4 @@ Remove-Item "C:\ProgramData\Company_Network" -Recurse -Force
 - **后端**：Python 3 + FastAPI + SQLAlchemy + SQLite
 - **前端**：Vue 3 + Vite + Element Plus + ECharts
 - **客户端**：Windows PowerShell 计划任务
+- **定位数据源**：cip.cc（IP 归属地，国内精确）+ 内置城市经纬度表

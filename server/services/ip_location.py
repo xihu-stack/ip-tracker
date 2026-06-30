@@ -1,48 +1,90 @@
-import urllib.request
-import json
 import time
+import urllib.request
+
+try:
+    from .city_coords import get_city_coord
+except ImportError:  # 兼容直接以模块方式运行（如一次性脚本）
+    from city_coords import get_city_coord
 
 
 _cache = {}
+_SUCCESS_TTL = 3600   # 成功结果缓存 1 小时
+_FAILURE_TTL = 300    # 失败结果只缓存 5 分钟，便于尽快重试
+
+# 地址行里可能出现、但不属于地名/省份的噪音词
+_COUNTRY_TOKENS = {"中国", "China", "china", "PRC"}
+
+
+def _query_cip_cc(ip: str):
+    """通过 cip.cc 查询 IP 归属地，返回 (province, city)；查询失败返回 None。
+
+    cip.cc 文本格式示例：
+        地址\t: 中国 江苏 南京
+        数据三\t: 中国 江苏省 南京市
+    地址行通常是短名，优先用；拿不到城市时回退到数据三行。
+    """
+    url = f"http://cip.cc/{ip}"
+    req = urllib.request.Request(url, headers={"User-Agent": "curl/8.4.0"})
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        text = resp.read().decode("utf-8", errors="ignore")
+
+    def _parts_of(line_prefix: str):
+        for line in text.splitlines():
+            if line_prefix in line and ":" in line:
+                val = line.split(":", 1)[1].strip()
+                parts = [p for p in val.split() if p and p not in _COUNTRY_TOKENS]
+                return parts
+        return []
+
+    province = ""
+    city = ""
+
+    addr = _parts_of("地址")
+    if addr:
+        province = addr[0]
+        if len(addr) > 1:
+            city = addr[1]
+
+    if not city:
+        data3 = _parts_of("数据三")
+        if data3:
+            province = data3[0]
+            if len(data3) > 1:
+                city = data3[1]
+
+    if not province and not city:
+        return None
+    if not city:
+        city = province
+    return province, city
 
 
 def ip_to_city(ip: str) -> dict:
-    """通过 ip-api.com 在线查询 IP 对应城市和经纬度，返回 {city, lat, lon}"""
-    if ip in _cache:
-        return _cache[ip]
+    """查询 IP 归属地：先查 cip.cc，再用城市坐标表补经纬度。返回 {city, lat, lon}。"""
+    now = time.time()
 
-    result = {"city": "未知", "lat": None, "lon": None}
+    cached = _cache.get(ip)
+    if cached:
+        ttl = _SUCCESS_TTL if cached.get("city") != "未知" else _FAILURE_TTL
+        if now - cached.get("_time", 0) < ttl:
+            return cached
 
-    try:
-        url = f"http://ip-api.com/json/{ip}?lang=zh-CN&fields=status,regionName,city,districtName,lat,lon"
-        req = urllib.request.Request(url, headers={"User-Agent": "IPTracker/1.0"})
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            data = json.loads(resp.read().decode())
+    geo = _query_cip_cc(ip)
+    if geo:
+        province, city = geo
+        label = city if (not province or province == city) else f"{province}-{city}"
+        lat, lon = get_city_coord(city, province)
+        result = {"city": label, "lat": lat, "lon": lon, "_time": now}
+    else:
+        result = {"city": "未知", "lat": None, "lon": None, "_time": now}
 
-        if data.get("status") == "success":
-            region = data.get("regionName", "")
-            city = data.get("city", "")
-            district = data.get("districtName", "")
-            parts = [p for p in [region, city, district] if p]
-            # 去重相邻重复（如 "上海-上海-浦东" → "上海-浦东"）
-            deduped = [parts[0]] + [parts[i] for i in range(1, len(parts)) if parts[i] != parts[i - 1]]
-            city_str = "-".join(deduped) if deduped else "未知"
-            result = {
-                "city": city_str,
-                "lat": data.get("lat"),
-                "lon": data.get("lon")
-            }
-    except Exception:
-        pass
-
-    result["_time"] = time.time()
-
-    # 缓存所有结果（包括"未知"），避免重复请求外部 API
     _cache[ip] = result
+
+    # 缓存上限：超出 10000 条时，清理 1 小时前的旧项
     if len(_cache) > 10000:
-        now = time.time()
         _cache_new = {k: v for k, v in _cache.items()
-                      if isinstance(v, dict) and v.get("_time") and now - v["_time"] < 3600}
+                      if isinstance(v, dict) and now - v.get("_time", 0) < 3600}
         _cache.clear()
         _cache.update(_cache_new)
+
     return result
