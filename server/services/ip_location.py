@@ -3,16 +3,23 @@ import time
 import urllib.request
 
 try:
-    from .city_coords import get_city_coord
+    from .city_coords import get_city_coord, _normalize
 except ImportError:  # 兼容直接以模块方式运行（如一次性脚本）
-    from city_coords import get_city_coord
+    from city_coords import get_city_coord, _normalize
 
 
 _cache = {}
 _SUCCESS_TTL = 3600   # 成功结果缓存 1 小时（同一 IP 期间不再请求外部）
 _FAILURE_TTL = 300    # 失败结果只缓存 5 分钟，便于尽快重试
 
-_COUNTRY_TOKENS = {"中国", "China", "china", "PRC"}
+# 地址/数据三行里需要过滤掉的噪音词：国家名、运营商、分隔符
+# （某些移动 IP，cip.cc 只知道"中国移动"，不过滤就会把"移动"误当成城市）
+_NOISE_TOKENS = {
+    "中国", "China", "china", "PRC",
+    "移动", "联通", "电信", "铁通", "广电", "鹏博士", "教育网", "长城",
+    "华数", "方正", "世纪互联", "中移", "中国移动", "中国联通", "中国电信",
+    "|",
+}
 
 
 def _query_cip_cc(ip: str):
@@ -35,7 +42,7 @@ def _query_cip_cc(ip: str):
         for line in text.splitlines():
             if line_prefix in line and ":" in line:
                 val = line.split(":", 1)[1].strip()
-                return [p for p in val.split() if p and p not in _COUNTRY_TOKENS]
+                return [p for p in val.split() if p and p not in _NOISE_TOKENS]
         return []
 
     province = ""
@@ -51,6 +58,8 @@ def _query_cip_cc(ip: str):
             province = data3[0]
             if len(data3) > 1:
                 city = data3[1]
+    province = _normalize(province)
+    city = _normalize(city)
     if not province and not city:
         return None
     if not city:
@@ -71,8 +80,8 @@ def _query_pconline(ip: str):
         data = json.loads(text)
         if data.get("err"):
             return None
-        province = (data.get("pro") or "").replace("省", "").replace("市", "")
-        city = (data.get("city") or "").replace("市", "")
+        province = _normalize(data.get("pro") or "")
+        city = _normalize(data.get("city") or "")
         if not province and not city:
             return None
         if not city:
@@ -82,20 +91,29 @@ def _query_pconline(ip: str):
         return None
 
 
-# 数据源顺序：前面的优先；任一被限流/失败时自动尝试后面的。要加更多源，往这里加一个函数即可。
+# 数据源顺序：前面的优先。要加更多源，往这里加一个函数即可。
 _SOURCES = (_query_cip_cc, _query_pconline)
 
 
 def _resolve(ip: str):
-    """依次尝试多个数据源，第一个成功的结果即返回；全部失败返回 None。"""
+    """依次尝试多个数据源：优先采用能给出**城市**的；都没有城市就退而用省级。
+
+    这样 cip.cc 只给省级/只给运营商时，会继续问 pconline，尽量拿到城市。
+    """
+    fallback = None
     for fn in _SOURCES:
         try:
             geo = fn(ip)
         except Exception:
             geo = None
-        if geo:
-            return geo
-    return None
+        if not geo:
+            continue
+        province, city = geo
+        if city and city != province:
+            return province, city          # 命中城市，立即采用
+        if fallback is None:
+            fallback = (province, city)    # 记下"只有省级"的兜底
+    return fallback
 
 
 def ip_to_city(ip: str) -> dict:
