@@ -73,6 +73,23 @@ sudo ufw allow 8000/tcp
 sudo ufw allow 9000/tcp
 ```
 
+### 更新最新代码
+
+服务器上执行三条命令即可升级到最新版本：
+
+```bash
+cd /opt/ip-tracker
+git pull                          # 拉取最新代码（前端构建产物已随仓库提交，无需在服务器上构建）
+sudo systemctl restart ip-tracker # 重启后端生效
+```
+
+验证：`systemctl status ip-tracker` 为 active、`journalctl -u ip-tracker -n 20` 无报错；浏览器打开后台后 **Ctrl+F5** 强制刷新，避免旧页面缓存。
+
+说明：
+
+- 升级**不会丢数据**——业务数据都在 `ip_tracker.db`，数据库结构变更在启动时自动完成
+- 建议升级前备份数据库，备份/恢复方法见 [运维手册](docs/运维手册.md)
+
 ## 前端重新构建
 
 如需修改前端代码后重新构建：
