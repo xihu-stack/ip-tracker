@@ -142,6 +142,10 @@ body { margin: 0; background: var(--bg-base); color: var(--text-primary); }
   flex-direction: column;
   overflow: hidden;
   box-shadow: 2px 0 8px rgba(0,0,0,0.08);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  align-self: flex-start;
 }
 
 /* Logo */
@@ -164,6 +168,9 @@ body { margin: 0; background: var(--bg-base); color: var(--text-primary); }
   border-right: none !important;
   background: transparent !important;
   padding: 8px 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 .sidebar-menu .el-menu-item {
   color: rgba(255,255,255,0.6) !important;
