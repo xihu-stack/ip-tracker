@@ -82,7 +82,7 @@
           <span class="map-hint">滚轮缩放 · 拖拽移动 · 悬停查看设备明细</span>
         </div>
       </template>
-      <div ref="mapChart" style="height: 500px; width: 100%"></div>
+      <div ref="mapChart" class="map-canvas"></div>
     </el-card>
   </div>
 </template>
@@ -158,14 +158,14 @@ async function initMap(mapData) {
       zoom: 1.2,
       center: [104, 36],
       itemStyle: {
-        areaColor: '#e9f0f9',
-        borderColor: '#ffffff',
-        borderWidth: 1.2,
-        shadowColor: 'rgba(30, 80, 160, 0.10)',
-        shadowBlur: 10
+        areaColor: '#ffffff',
+        borderColor: '#c2d4ec',
+        borderWidth: 1,
+        shadowColor: 'rgba(30, 80, 160, 0.20)',
+        shadowBlur: 12
       },
       emphasis: {
-        itemStyle: { areaColor: '#d3e4f8' },
+        itemStyle: { areaColor: '#eaf2fd' },
         label: { show: false }
       },
       label: { show: false }
@@ -179,40 +179,40 @@ async function initMap(mapData) {
         type: 'scatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize(val) { return Math.sqrt(val[2]) * 26 + 18 },
-        itemStyle: { color: 'rgba(37, 99, 235, 0.08)' },
+        symbolSize(val) { return Math.sqrt(val[2]) * 26 + 20 },
+        itemStyle: { color: 'rgba(234, 88, 12, 0.10)' },
         silent: true,
         z: 1
       },
-      // 涟漪散点 + 城市名/设备数标注（重叠自动隐藏，缩放后自动补显）
+      // 橙色涟漪散点 + 城市名/设备数标注（重叠自动隐藏，缩放后自动补显）
       {
         type: 'effectScatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize(val) { return Math.sqrt(val[2]) * 7 + 9 },
+        symbolSize(val) { return Math.sqrt(val[2]) * 8 + 10 },
         rippleEffect: { brushType: 'stroke', scale: 3, period: 4 },
         itemStyle: {
           color: {
             type: 'radial', x: 0.5, y: 0.5, r: 0.5,
             colorStops: [
-              { offset: 0, color: '#7db4ff' },
-              { offset: 0.55, color: '#2563eb' },
-              { offset: 1, color: '#1d4ed8' }
+              { offset: 0, color: '#fdba74' },
+              { offset: 0.55, color: '#f97316' },
+              { offset: 1, color: '#ea580c' }
             ]
           },
           borderColor: '#ffffff',
-          borderWidth: 1.5,
+          borderWidth: 2,
           shadowBlur: 10,
-          shadowColor: 'rgba(37, 99, 235, 0.5)'
+          shadowColor: 'rgba(234, 88, 12, 0.55)'
         },
         label: {
           show: true,
           position: 'top',
-          distance: 6,
+          distance: 8,
           formatter: p => `${p.name} ${p.value[2]}台`,
-          color: '#0f2540',
-          fontSize: 12,
-          fontWeight: 600,
+          color: '#9a3412',
+          fontSize: 13,
+          fontWeight: 700,
           textBorderColor: '#ffffff',
           textBorderWidth: 3
         },
@@ -327,6 +327,14 @@ onUnmounted(() => {
 .dot-green { background: var(--success); }
 .dot-red { background: var(--danger); }
 .dot-blue { background: var(--accent); }
+
+/* 地图画布：浅蓝海洋渐变衬托白色陆地 */
+.map-canvas {
+  height: 500px;
+  width: 100%;
+  background: linear-gradient(180deg, #ecf4fe 0%, #dce9fb 100%);
+  border-radius: 8px;
+}
 
 .sub-text { color: var(--text-muted); font-size: 12px; }
 
