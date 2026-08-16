@@ -14,16 +14,7 @@
         <span class="radar-dot d4"></span>
       </div>
       <div class="brand-content">
-        <div class="logo-icon">
-          <svg viewBox="0 0 40 40" fill="none">
-            <circle cx="20" cy="20" r="8" stroke="#7ec8ff" stroke-width="2" opacity="0.9"/>
-            <circle cx="20" cy="20" r="14" stroke="#7ec8ff" stroke-width="1" opacity="0.5"/>
-            <circle cx="20" cy="20" r="18" stroke="#7ec8ff" stroke-width="0.5" opacity="0.3"/>
-            <circle cx="20" cy="12" r="2" fill="#7ec8ff"/>
-            <circle cx="28" cy="24" r="2" fill="#7ec8ff" opacity="0.7"/>
-            <circle cx="12" cy="24" r="2" fill="#7ec8ff" opacity="0.5"/>
-          </svg>
-        </div>
+        <img class="brand-logo" src="/logo.png" alt="Sellixon" />
         <h1>IP 定位追踪平台</h1>
         <p class="brand-sub">INTELLIGENT LOCATION TRACKING SYSTEM</p>
         <ul class="brand-features">
@@ -173,14 +164,10 @@ async function handleLogin() {
   z-index: 1;
   max-width: 420px;
 }
-.logo-icon {
-  width: 56px;
-  height: 56px;
-  margin-bottom: 28px;
-  animation: logoSpin 12s linear infinite;
-}
-@keyframes logoSpin {
-  to { transform: rotate(360deg); }
+.brand-logo {
+  height: 42px;
+  width: auto;
+  margin-bottom: 24px;
 }
 .brand-content h1 {
   margin: 0 0 12px;

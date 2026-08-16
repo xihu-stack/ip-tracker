@@ -2,17 +2,9 @@
   <el-container class="app-container">
     <el-aside v-if="showSidebar" width="220px" class="sidebar">
       <div class="sidebar-logo">
-        <div class="logo-ring">
-          <svg viewBox="0 0 32 32" fill="none">
-            <circle cx="16" cy="16" r="6" stroke="#2563eb" stroke-width="1.5" opacity="0.9"/>
-            <circle cx="16" cy="16" r="11" stroke="#2563eb" stroke-width="0.8" opacity="0.35"/>
-            <circle cx="16" cy="16" r="14" stroke="#2563eb" stroke-width="0.4" opacity="0.15"/>
-            <circle cx="16" cy="10" r="1.5" fill="#2563eb"/>
-          </svg>
-        </div>
+        <img class="logo-img" src="/logo.png" alt="Sellixon" />
         <div class="logo-text">
-          <span class="logo-title">IP TRACKER</span>
-          <span class="logo-sub">定位追踪平台</span>
+          <span class="logo-sub">IP 定位追踪平台</span>
         </div>
       </div>
       <el-menu :default-active="currentPath" router class="sidebar-menu">
@@ -156,15 +148,16 @@ body { margin: 0; background: var(--bg-base); color: var(--text-primary); }
 .sidebar-logo {
   height: 68px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
   padding: 0 20px;
-  gap: 12px;
+  gap: 6px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
-.logo-ring { width: 34px; height: 34px; flex-shrink: 0; }
+.logo-img { height: 22px; width: auto; }
 .logo-text { display: flex; flex-direction: column; }
-.logo-title { color: #fff; font-size: 15px; font-weight: 700; letter-spacing: 3px; line-height: 1.2; }
-.logo-sub { font-size: 10px; color: rgba(255,255,255,0.4); letter-spacing: 1px; }
+.logo-sub { font-size: 11px; color: rgba(255,255,255,0.45); letter-spacing: 1px; }
 
 /* 菜单 */
 .sidebar-menu {
