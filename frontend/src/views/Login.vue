@@ -1,6 +1,6 @@
 <template>
   <div class="login-wrapper">
-    <!-- 动态背景网格 -->
+    <!-- 浅色蓝图网格背景 -->
     <div class="grid-bg"></div>
     <div class="scan-line"></div>
 
@@ -15,12 +15,12 @@
       <div class="login-header">
         <div class="logo-icon">
           <svg viewBox="0 0 40 40" fill="none">
-            <circle cx="20" cy="20" r="8" stroke="#00d4ff" stroke-width="2" opacity="0.8"/>
-            <circle cx="20" cy="20" r="14" stroke="#00d4ff" stroke-width="1" opacity="0.4"/>
-            <circle cx="20" cy="20" r="18" stroke="#00d4ff" stroke-width="0.5" opacity="0.2"/>
-            <circle cx="20" cy="12" r="2" fill="#00d4ff"/>
-            <circle cx="28" cy="24" r="2" fill="#00d4ff" opacity="0.6"/>
-            <circle cx="12" cy="24" r="2" fill="#00d4ff" opacity="0.4"/>
+            <circle cx="20" cy="20" r="8" stroke="#0b6ef5" stroke-width="2" opacity="0.9"/>
+            <circle cx="20" cy="20" r="14" stroke="#0b6ef5" stroke-width="1" opacity="0.5"/>
+            <circle cx="20" cy="20" r="18" stroke="#0b6ef5" stroke-width="0.5" opacity="0.3"/>
+            <circle cx="20" cy="12" r="2" fill="#0b6ef5"/>
+            <circle cx="28" cy="24" r="2" fill="#0b6ef5" opacity="0.7"/>
+            <circle cx="12" cy="24" r="2" fill="#0b6ef5" opacity="0.5"/>
           </svg>
         </div>
         <h2>IP 定位追踪平台</h2>
@@ -90,18 +90,18 @@ async function handleLogin() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0a0e1a;
+  background: linear-gradient(160deg, #f4f9ff 0%, #e8f2fd 45%, #dceafb 100%);
   position: relative;
   overflow: hidden;
 }
 
-/* 动态网格背景 */
+/* 蓝图网格背景 */
 .grid-bg {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(11, 110, 245, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(11, 110, 245, 0.07) 1px, transparent 1px);
   background-size: 60px 60px;
   animation: gridMove 20s linear infinite;
 }
@@ -116,7 +116,7 @@ async function handleLogin() {
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.15), transparent);
+  background: linear-gradient(90deg, transparent, rgba(11, 110, 245, 0.25), transparent);
   animation: scanDown 4s ease-in-out infinite;
 }
 @keyframes scanDown {
@@ -129,15 +129,15 @@ async function handleLogin() {
 /* 浮动粒子 */
 .particles .dot {
   position: absolute;
-  background: #00d4ff;
+  background: #4aa3ff;
   border-radius: 50%;
   opacity: 0;
   animation: float-up linear infinite;
 }
 @keyframes float-up {
   0% { opacity: 0; transform: translateY(0) scale(1); }
-  20% { opacity: 0.6; }
-  80% { opacity: 0.3; }
+  20% { opacity: 0.5; }
+  80% { opacity: 0.25; }
   100% { opacity: 0; transform: translateY(-200px) scale(0.5); }
 }
 
@@ -145,20 +145,23 @@ async function handleLogin() {
 .login-card {
   width: 420px;
   position: relative;
-  background: rgba(12, 20, 40, 0.85);
-  border: 1px solid rgba(0, 212, 255, 0.15);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #cfe0f4;
   border-radius: 16px;
   padding: 48px 40px 36px;
   backdrop-filter: blur(20px);
+  box-shadow:
+    0 20px 50px rgba(30, 90, 180, 0.12),
+    0 4px 12px rgba(30, 90, 180, 0.06);
   z-index: 1;
 }
 
-/* 卡片外发光 */
+/* 卡片柔光 */
 .card-glow {
   position: absolute;
   inset: -1px;
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), transparent 40%, transparent 60%, rgba(0, 212, 255, 0.05));
+  background: linear-gradient(135deg, rgba(11, 110, 245, 0.12), transparent 40%, transparent 60%, rgba(74, 163, 255, 0.08));
   z-index: -1;
   animation: glowPulse 3s ease-in-out infinite alternate;
 }
@@ -186,13 +189,13 @@ async function handleLogin() {
   margin: 0;
   font-size: 22px;
   font-weight: 600;
-  color: #e0f0ff;
+  color: #10314f;
   letter-spacing: 4px;
 }
 .login-header p {
   margin: 8px 0 0;
   font-size: 11px;
-  color: rgba(0, 212, 255, 0.5);
+  color: #628cb8;
   letter-spacing: 3px;
   font-family: 'Courier New', monospace;
 }
@@ -207,30 +210,30 @@ async function handleLogin() {
   left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  color: rgba(0, 212, 255, 0.5);
+  color: #3f7ec9;
   font-size: 16px;
   z-index: 1;
 }
 .login-form :deep(.el-input__wrapper) {
-  background: rgba(0, 212, 255, 0.04);
-  border: 1px solid rgba(0, 212, 255, 0.12);
+  background: #ffffff;
+  border: 1px solid #c4d7ee;
   border-radius: 8px;
   box-shadow: none;
   padding-left: 44px;
   transition: all 0.3s;
 }
 .login-form :deep(.el-input__wrapper:hover) {
-  border-color: rgba(0, 212, 255, 0.3);
+  border-color: #8fb8e8;
 }
 .login-form :deep(.el-input__wrapper.is-focus) {
-  border-color: #00d4ff;
-  box-shadow: 0 0 12px rgba(0, 212, 255, 0.15);
+  border-color: #0b6ef5;
+  box-shadow: 0 0 0 3px rgba(11, 110, 245, 0.12);
 }
 .login-form :deep(.el-input__inner) {
-  color: #c0d8f0;
+  color: #1a3a5c;
 }
 .login-form :deep(.el-input__inner::placeholder) {
-  color: rgba(0, 212, 255, 0.25);
+  color: #94aac4;
 }
 
 /* 登录按钮 */
@@ -240,7 +243,7 @@ async function handleLogin() {
   margin-top: 8px;
   border: none;
   border-radius: 8px;
-  background: linear-gradient(135deg, #0066cc, #00aaff);
+  background: linear-gradient(135deg, #0b6ef5, #2b9cff);
   color: #fff;
   font-size: 16px;
   font-weight: 600;
@@ -250,8 +253,8 @@ async function handleLogin() {
   transition: all 0.3s;
 }
 .login-btn:hover {
-  background: linear-gradient(135deg, #0088ee, #00ccff);
-  box-shadow: 0 0 24px rgba(0, 170, 255, 0.35);
+  background: linear-gradient(135deg, #0a63dc, #1b8af0);
+  box-shadow: 0 8px 20px rgba(11, 110, 245, 0.3);
   transform: translateY(-1px);
 }
 .login-btn::after {
@@ -261,7 +264,7 @@ async function handleLogin() {
   left: -60%;
   width: 40%;
   height: 200%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
   transform: skewX(-25deg);
   animation: btnShine 3s ease-in-out infinite;
 }
@@ -275,7 +278,7 @@ async function handleLogin() {
   text-align: center;
   margin-top: 24px;
   font-size: 10px;
-  color: rgba(0, 212, 255, 0.2);
+  color: #8fa9c6;
   letter-spacing: 2px;
   font-family: 'Courier New', monospace;
 }
