@@ -75,10 +75,10 @@ def list_employees(
     total = query.count()
     employees = query.order_by(Employee.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
 
+    threshold = datetime.now() - timedelta(minutes=20)
     result = []
     for emp in employees:
         latest = db.query(IpRecord).filter(IpRecord.employee_id == emp.id).order_by(IpRecord.reported_at.desc()).first()
-        threshold = datetime.now() - timedelta(minutes=20)
         is_online = emp.last_seen_at and emp.last_seen_at >= threshold
         result.append({
             "id": emp.id,
@@ -92,6 +92,13 @@ def list_employees(
         })
 
     return {"total": total, "page": page, "page_size": page_size, "data": result}
+
+
+def _parse_date(value: str, field: str) -> datetime:
+    try:
+        return datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"{field} 格式应为 YYYY-MM-DD")
 
 
 @router.get("/employees/{employee_id}/records")
@@ -110,9 +117,9 @@ def employee_records(
 
     query = db.query(IpRecord).filter(IpRecord.employee_id == employee_id)
     if start_date:
-        query = query.filter(IpRecord.reported_at >= datetime.strptime(start_date, "%Y-%m-%d"))
+        query = query.filter(IpRecord.reported_at >= _parse_date(start_date, "start_date"))
     if end_date:
-        end = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+        end = _parse_date(end_date, "end_date") + timedelta(days=1)
         query = query.filter(IpRecord.reported_at < end)
 
     total = query.count()

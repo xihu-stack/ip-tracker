@@ -1,7 +1,6 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from database import engine, Base, SessionLocal
@@ -42,13 +41,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="IP 定位追踪平台", lifespan=lifespan)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# 前后端同源部署（后端直接托管 frontend/dist），无需 CORS；
+# 之前的 allow_origins=["*"] + allow_credentials=True 组合不规范，已移除。
 
 app.include_router(report.router)
 app.include_router(query.router)
@@ -76,6 +70,11 @@ if dist_path:
         file_path = os.path.join(dist_path, path)
         if os.path.isfile(file_path):
             return FileResponse(file_path)
+        # 静态资源丢失（通常是升级后旧缓存 HTML 引用了已删除的 hash 文件）：
+        # 返回 404 而不是 index.html，避免浏览器把 HTML 当 JS 解析导致白屏无提示
+        if path.startswith("assets/") or path == "china.json":
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
         return FileResponse(os.path.join(dist_path, "index.html"))
 
     # 静态资源（JS/CSS/JSON 等文件）

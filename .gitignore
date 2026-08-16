@@ -27,3 +27,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# JWT 密钥文件（首次启动自动生成）
+.secret_key

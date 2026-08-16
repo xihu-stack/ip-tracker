@@ -78,7 +78,19 @@ cd $APP_DIR
 $PYTHON -m venv venv
 source venv/bin/activate
 pip install --quiet --upgrade pip
-pip install --quiet fastapi uvicorn sqlalchemy "python-jose[cryptography]" "passlib[bcrypt]" python-multipart
+# 优先按 requirements.txt 钉的版本安装（bcrypt 必须钉 4.0.1，新版与 passlib 1.7.4 不兼容）
+REQ_FILE=""
+if [ -f "$APP_DIR/requirements.txt" ]; then
+    REQ_FILE="$APP_DIR/requirements.txt"
+elif [ -f "$APP_DIR/server/requirements.txt" ]; then
+    REQ_FILE="$APP_DIR/server/requirements.txt"
+fi
+if [ -n "$REQ_FILE" ]; then
+    pip install --quiet -r "$REQ_FILE"
+else
+    echo "[警告] 未找到 requirements.txt，按默认清单安装"
+    pip install --quiet "fastapi>=0.115.0" "uvicorn>=0.30.0" "sqlalchemy>=2.0.0" "python-jose[cryptography]>=3.3.0" "passlib[bcrypt]>=1.7.4" "bcrypt==4.0.1" "python-multipart>=0.0.6"
+fi
 echo "   → 依赖安装完成"
 
 # ---------- 4. 配置 systemd 服务 ----------

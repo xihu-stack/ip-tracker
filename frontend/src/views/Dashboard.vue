@@ -104,13 +104,22 @@ const statCards = computed(() => [
   { label: '今日上报', value: stats.value.day_records, color: '#d97706', bg: '#fffbeb', icon: 'DataLine' },
 ])
 
+let chinaJsonPromise = null
+function getChinaJson() {
+  if (!chinaJsonPromise) {
+    chinaJsonPromise = fetch('/china.json').then(resp => resp.json())
+  }
+  return chinaJsonPromise
+}
+
 async function initMap(mapData) {
   if (!mapChart.value) return
-  const resp = await fetch('/china.json')
-  const chinaJson = await resp.json()
+  const chinaJson = await getChinaJson()
   echarts.registerMap('china', chinaJson)
-  if (chartInstance) chartInstance.dispose()
-  chartInstance = echarts.init(mapChart.value)
+  // 只初始化一次，后续刷新仅更新数据——避免 dispose 重建导致用户的缩放/拖动视角被重置
+  if (!chartInstance) {
+    chartInstance = echarts.init(mapChart.value)
+  }
 
   const scatterData = mapData.map(item => ({
     name: item.city,
@@ -216,6 +225,10 @@ onMounted(() => {
 })
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
 })
 </script>
 

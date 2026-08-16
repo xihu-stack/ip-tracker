@@ -3,10 +3,10 @@
     <h2 style="margin-bottom: 20px">员工列表</h2>
     <el-card>
       <div class="toolbar">
-        <el-input v-model="search" placeholder="搜索主机名或姓名" style="width: 300px" clearable @clear="loadData" @keyup.enter="loadData">
+        <el-input v-model="search" placeholder="搜索主机名或姓名" style="width: 300px" clearable @clear="handleSearch" @keyup.enter="handleSearch">
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-button type="primary" @click="loadData">查询</el-button>
+        <el-button type="primary" @click="handleSearch">查询</el-button>
       </div>
 
       <el-table :data="employees" stripe v-loading="loading">
@@ -48,7 +48,7 @@
           :page-sizes="[20, 50, 100]"
           layout="total, sizes, prev, pager, next"
           @current-change="loadData"
-          @size-change="loadData"
+          @size-change="handleSizeChange"
         />
       </div>
     </el-card>
@@ -100,6 +100,16 @@ async function loadData() {
   } finally {
     loading.value = false
   }
+}
+
+function handleSearch() {
+  page.value = 1
+  loadData()
+}
+
+function handleSizeChange() {
+  page.value = 1
+  loadData()
 }
 
 function openEdit(row) {

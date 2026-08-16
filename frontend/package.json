@@ -13,9 +13,9 @@
     "axios": "^1.7.0",
     "echarts": "^6.1.0",
     "element-plus": "^2.8.0",
-    "playwright": "^1.60.0",
     "vue": "^3.4.0",
-    "vue-router": "^4.3.0"
+    "vue-router": "^4.3.0",
+    "dayjs": "^1.11.13"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.1.0",

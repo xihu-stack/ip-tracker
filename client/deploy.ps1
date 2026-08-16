@@ -17,6 +17,9 @@ Write-DeployLog "=== deploy.ps1 开始执行 ==="
 # 上报地址用域名：以后换服务器只需改 DNS 解析，客户端无需重新推送
 # 内网部署用 8000 端口，公网部署用 9000 端口
 $SERVER_URL = "http://iptracker.huashen.bio:9000/api/report"
+# 上报令牌（可选）：与服务器环境变量 IP_TRACKER_REPORT_SECRET 配合使用。
+# 留空 = 不带令牌，兼容当前未开启校验的服务器；填入后需在服务器同步配置才生效
+$REPORT_TOKEN = ""
 $TASK_NAME = "Company_IP_Tracker"
 
 # 统一使用标准的公共本地路径，避免 SYSTEM 账户与普通用户 AppData 错位
@@ -29,6 +32,7 @@ if (-not (Test-Path $INSTALL_DIR)) {
 $scriptPath = "$INSTALL_DIR\report.ps1"
 $lines = @(
     '$SERVER_URL = "' + $SERVER_URL + '"'
+    '$REPORT_TOKEN = "' + $REPORT_TOKEN + '"'
     '$LOG_FILE = "$env:TEMP\ip_report.log"'
     'function Write-Log($msg) {'
     '    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"'
@@ -65,7 +69,9 @@ $lines = @(
     '    } catch { Write-Log "WARN: GeoIP query failed, fallback to pure IP" }'
     '    $body = @{hostname=$hostname; ip=$ip; city=$city; lat=$lat; lon=$lon} | ConvertTo-Json -Compress'
     '    $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)'
-    '    Invoke-WebRequest -Uri $SERVER_URL -Method Post -Body $bodyBytes -ContentType "application/json; charset=utf-8" -UseBasicParsing -TimeoutSec 10 | Out-Null'
+    '    $headers = @{}'
+    '    if ($REPORT_TOKEN) { $headers["X-Report-Token"] = $REPORT_TOKEN }'
+    '    Invoke-WebRequest -Uri $SERVER_URL -Method Post -Body $bodyBytes -ContentType "application/json; charset=utf-8" -Headers $headers -UseBasicParsing -TimeoutSec 10 | Out-Null'
     '    Write-Log "OK: $hostname -> $ip [$city] ($lat,$lon)"'
     '} catch { Write-Log "ERROR: $($_.Exception.Message)"; exit 1 }'
 )
