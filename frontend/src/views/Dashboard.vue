@@ -79,6 +79,7 @@
       <template #header>
         <div class="card-title">
           <span class="dot dot-blue"></span> 设备分布地图
+          <span class="map-hint">滚轮缩放 · 拖拽移动 · 悬停查看设备明细</span>
         </div>
       </template>
       <div ref="mapChart" style="height: 500px; width: 100%"></div>
@@ -157,50 +158,66 @@ async function initMap(mapData) {
       zoom: 1.2,
       center: [104, 36],
       itemStyle: {
-        areaColor: '#0f1b2e',
-        borderColor: '#1a3050',
-        borderWidth: 0.6
+        areaColor: '#e9f0f9',
+        borderColor: '#ffffff',
+        borderWidth: 1.2,
+        shadowColor: 'rgba(30, 80, 160, 0.10)',
+        shadowBlur: 10
       },
       emphasis: {
-        itemStyle: { areaColor: '#162a45' },
-        label: { show: true, color: '#6ba3d6', fontSize: 10 }
+        itemStyle: { areaColor: '#d3e4f8' },
+        label: { show: false }
       },
-      label: { show: true, color: 'rgba(100,160,210,0.3)', fontSize: 9 }
+      label: { show: false }
     },
     animation: true,
     animationDuration: 800,
     animationEasing: 'cubicOut',
     series: [
-      // 热力光晕底层
+      // 底层光晕：设备越多的城市光圈越大，远看即可定位
       {
         type: 'scatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize(val) { return Math.sqrt(val[2]) * 20 + 10 },
-        itemStyle: { color: 'rgba(37, 99, 235, 0.06)' },
+        symbolSize(val) { return Math.sqrt(val[2]) * 26 + 18 },
+        itemStyle: { color: 'rgba(37, 99, 235, 0.08)' },
         silent: true,
         z: 1
       },
-      // 涟漪散点
+      // 涟漪散点 + 城市名/设备数标注（重叠自动隐藏，缩放后自动补显）
       {
         type: 'effectScatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize(val) { return Math.sqrt(val[2]) * 5 + 6 },
-        rippleEffect: { brushType: 'stroke', scale: 3.5, period: 4 },
+        symbolSize(val) { return Math.sqrt(val[2]) * 7 + 9 },
+        rippleEffect: { brushType: 'stroke', scale: 3, period: 4 },
         itemStyle: {
           color: {
             type: 'radial', x: 0.5, y: 0.5, r: 0.5,
             colorStops: [
-              { offset: 0, color: '#93c5fd' },
-              { offset: 0.5, color: '#3b82f6' },
+              { offset: 0, color: '#7db4ff' },
+              { offset: 0.55, color: '#2563eb' },
               { offset: 1, color: '#1d4ed8' }
             ]
           },
-          shadowBlur: 16,
-          shadowColor: 'rgba(59, 130, 246, 0.5)'
+          borderColor: '#ffffff',
+          borderWidth: 1.5,
+          shadowBlur: 10,
+          shadowColor: 'rgba(37, 99, 235, 0.5)'
         },
-        label: { show: false },
+        label: {
+          show: true,
+          position: 'top',
+          distance: 6,
+          formatter: p => `${p.name} ${p.value[2]}台`,
+          color: '#0f2540',
+          fontSize: 12,
+          fontWeight: 600,
+          textBorderColor: '#ffffff',
+          textBorderWidth: 3
+        },
+        labelLayout: { hideOverlap: true },
+        emphasis: { scale: 1.4 },
         z: 2
       }
     ]
@@ -300,6 +317,12 @@ onUnmounted(() => {
   font-weight: 600;
   font-size: 14px;
 }
+.map-hint {
+  margin-left: auto;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--text-muted);
+}
 .dot { width: 8px; height: 8px; border-radius: 50%; }
 .dot-green { background: var(--success); }
 .dot-red { background: var(--danger); }
@@ -307,15 +330,8 @@ onUnmounted(() => {
 
 .sub-text { color: var(--text-muted); font-size: 12px; }
 
-/* 地图卡片深色背景 */
+/* 地图卡片（浅色，与整体一致） */
 .map-card {
   margin-top: 16px;
-  background: #0a1628 !important;
-  border-color: #1a2a44 !important;
-}
-.map-card :deep(.el-card__header) {
-  background: #0a1628 !important;
-  border-color: #1a2a44 !important;
-  color: #e2e8f0 !important;
 }
 </style>
