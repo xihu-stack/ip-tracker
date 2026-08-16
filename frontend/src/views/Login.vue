@@ -1,45 +1,64 @@
 <template>
-  <div class="login-wrapper">
-    <!-- 浅色蓝图网格背景 -->
-    <div class="grid-bg"></div>
-    <div class="scan-line"></div>
-
-    <!-- 浮动粒子 -->
-    <div class="particles">
-      <span v-for="i in 20" :key="i" class="dot" :style="dotStyle(i)"></span>
-    </div>
-
-    <!-- 登录卡片 -->
-    <div class="login-card">
-      <div class="card-glow"></div>
-      <div class="login-header">
+  <div class="login-page">
+    <!-- 左侧品牌展示区 -->
+    <div class="brand-panel">
+      <div class="brand-grid"></div>
+      <div class="radar">
+        <div class="radar-ring r1"></div>
+        <div class="radar-ring r2"></div>
+        <div class="radar-ring r3"></div>
+        <div class="radar-sweep"></div>
+        <span class="radar-dot d1"></span>
+        <span class="radar-dot d2"></span>
+        <span class="radar-dot d3"></span>
+        <span class="radar-dot d4"></span>
+      </div>
+      <div class="brand-content">
         <div class="logo-icon">
           <svg viewBox="0 0 40 40" fill="none">
-            <circle cx="20" cy="20" r="8" stroke="#0b6ef5" stroke-width="2" opacity="0.9"/>
-            <circle cx="20" cy="20" r="14" stroke="#0b6ef5" stroke-width="1" opacity="0.5"/>
-            <circle cx="20" cy="20" r="18" stroke="#0b6ef5" stroke-width="0.5" opacity="0.3"/>
-            <circle cx="20" cy="12" r="2" fill="#0b6ef5"/>
-            <circle cx="28" cy="24" r="2" fill="#0b6ef5" opacity="0.7"/>
-            <circle cx="12" cy="24" r="2" fill="#0b6ef5" opacity="0.5"/>
+            <circle cx="20" cy="20" r="8" stroke="#7ec8ff" stroke-width="2" opacity="0.9"/>
+            <circle cx="20" cy="20" r="14" stroke="#7ec8ff" stroke-width="1" opacity="0.5"/>
+            <circle cx="20" cy="20" r="18" stroke="#7ec8ff" stroke-width="0.5" opacity="0.3"/>
+            <circle cx="20" cy="12" r="2" fill="#7ec8ff"/>
+            <circle cx="28" cy="24" r="2" fill="#7ec8ff" opacity="0.7"/>
+            <circle cx="12" cy="24" r="2" fill="#7ec8ff" opacity="0.5"/>
           </svg>
         </div>
-        <h2>IP 定位追踪平台</h2>
-        <p>INTELLIGENT LOCATION TRACKING SYSTEM</p>
+        <h1>IP 定位追踪平台</h1>
+        <p class="brand-sub">INTELLIGENT LOCATION TRACKING SYSTEM</p>
+        <ul class="brand-features">
+          <li><span class="feat-dot"></span>终端在线状态实时监测</li>
+          <li><span class="feat-dot"></span>全国城市分布可视化地图</li>
+          <li><span class="feat-dot"></span>IP 变更历史轨迹追溯</li>
+        </ul>
       </div>
-      <el-form :model="form" @submit.prevent="handleLogin" class="login-form">
-        <div class="input-group">
-          <div class="input-icon"><el-icon><User /></el-icon></div>
-          <el-input v-model="form.username" placeholder="请输入用户名" size="large" />
+      <div class="brand-footer">SECURE ACCESS · ENCRYPTED CONNECTION</div>
+    </div>
+
+    <!-- 右侧登录表单区 -->
+    <div class="form-panel">
+      <div class="grid-bg"></div>
+      <div class="login-card">
+        <div class="login-header">
+          <h2>欢迎登录</h2>
+          <p>请输入管理员账号</p>
         </div>
-        <div class="input-group">
-          <div class="input-icon"><el-icon><Lock /></el-icon></div>
-          <el-input v-model="form.password" type="password" placeholder="请输入密码" size="large" show-password @keyup.enter="handleLogin" />
-        </div>
-        <el-button size="large" class="login-btn" :loading="loading" @click="handleLogin">
-          <span v-if="!loading">登 录</span>
-        </el-button>
-      </el-form>
-      <div class="login-footer">SECURE ACCESS · ENCRYPTED CONNECTION</div>
+        <el-form :model="form" @submit.prevent="handleLogin" class="login-form">
+          <div class="input-group">
+            <div class="input-icon"><el-icon><User /></el-icon></div>
+            <el-input v-model="form.username" placeholder="用户名" size="large" />
+          </div>
+          <div class="input-group">
+            <div class="input-icon"><el-icon><Lock /></el-icon></div>
+            <el-input v-model="form.password" type="password" placeholder="密码" size="large" show-password @keyup.enter="handleLogin" />
+          </div>
+          <el-button size="large" class="login-btn" :loading="loading" @click="handleLogin">
+            <span v-if="!loading">登 录</span>
+          </el-button>
+        </el-form>
+        <div class="login-tip">内网管理系统 · 如需重置密码请联系服务器管理员</div>
+      </div>
+      <div class="form-footer">IP TRACKER · ADMIN CONSOLE</div>
     </div>
   </div>
 </template>
@@ -53,18 +72,6 @@ import { login } from '../api'
 const router = useRouter()
 const loading = ref(false)
 const form = ref({ username: '', password: '' })
-
-function dotStyle(i) {
-  const size = 2 + Math.random() * 3
-  return {
-    width: size + 'px',
-    height: size + 'px',
-    left: Math.random() * 100 + '%',
-    top: Math.random() * 100 + '%',
-    animationDelay: (Math.random() * 6) + 's',
-    animationDuration: (4 + Math.random() * 6) + 's'
-  }
-}
 
 async function handleLogin() {
   if (!form.value.username || !form.value.password) {
@@ -85,119 +92,189 @@ async function handleLogin() {
 </script>
 
 <style scoped>
-.login-wrapper {
+.login-page {
   min-height: 100vh;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(160deg, #f4f9ff 0%, #e8f2fd 45%, #dceafb 100%);
+}
+
+/* ===================== 左侧品牌区 ===================== */
+.brand-panel {
+  flex: 1.15;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 60px 72px;
+  background:
+    radial-gradient(ellipse at 20% 10%, rgba(64, 156, 255, 0.35), transparent 55%),
+    radial-gradient(ellipse at 85% 90%, rgba(0, 212, 255, 0.18), transparent 50%),
+    linear-gradient(150deg, #0a2e6e 0%, #0b5ed7 55%, #0b6ef5 100%);
   overflow: hidden;
 }
 
-/* 蓝图网格背景 */
-.grid-bg {
+/* 蓝图网格 */
+.brand-grid {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(11, 110, 245, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(11, 110, 245, 0.07) 1px, transparent 1px);
-  background-size: 60px 60px;
-  animation: gridMove 20s linear infinite;
-}
-@keyframes gridMove {
-  0% { transform: translate(0, 0); }
-  100% { transform: translate(60px, 60px); }
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 56px 56px;
 }
 
-/* 扫描线 */
-.scan-line {
+/* 雷达装饰 */
+.radar {
   position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(11, 110, 245, 0.25), transparent);
-  animation: scanDown 4s ease-in-out infinite;
+  right: -140px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 480px;
+  height: 480px;
 }
-@keyframes scanDown {
-  0% { top: -2px; opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { top: 100%; opacity: 0; }
-}
-
-/* 浮动粒子 */
-.particles .dot {
+.radar-ring {
   position: absolute;
-  background: #4aa3ff;
   border-radius: 50%;
-  opacity: 0;
-  animation: float-up linear infinite;
+  border: 1px solid rgba(126, 200, 255, 0.22);
 }
-@keyframes float-up {
-  0% { opacity: 0; transform: translateY(0) scale(1); }
-  20% { opacity: 0.5; }
-  80% { opacity: 0.25; }
-  100% { opacity: 0; transform: translateY(-200px) scale(0.5); }
-}
-
-/* 登录卡片 */
-.login-card {
-  width: 420px;
-  position: relative;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #cfe0f4;
-  border-radius: 16px;
-  padding: 48px 40px 36px;
-  backdrop-filter: blur(20px);
-  box-shadow:
-    0 20px 50px rgba(30, 90, 180, 0.12),
-    0 4px 12px rgba(30, 90, 180, 0.06);
-  z-index: 1;
-}
-
-/* 卡片柔光 */
-.card-glow {
+.radar-ring.r1 { inset: 0; }
+.radar-ring.r2 { inset: 18%; }
+.radar-ring.r3 { inset: 36%; border-color: rgba(126, 200, 255, 0.35); }
+.radar-sweep {
   position: absolute;
-  inset: -1px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(11, 110, 245, 0.12), transparent 40%, transparent 60%, rgba(74, 163, 255, 0.08));
-  z-index: -1;
-  animation: glowPulse 3s ease-in-out infinite alternate;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(126, 200, 255, 0.35), transparent 70deg);
+  animation: sweep 6s linear infinite;
 }
-@keyframes glowPulse {
-  0% { opacity: 0.5; }
-  100% { opacity: 1; }
+@keyframes sweep {
+  to { transform: rotate(360deg); }
+}
+.radar-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9fdcff;
+  box-shadow: 0 0 12px rgba(126, 200, 255, 0.9);
+  animation: blink 3s ease-in-out infinite;
+}
+.radar-dot.d1 { left: 30%; top: 22%; }
+.radar-dot.d2 { left: 62%; top: 46%; animation-delay: 0.8s; }
+.radar-dot.d3 { left: 44%; top: 68%; animation-delay: 1.6s; }
+.radar-dot.d4 { left: 20%; top: 52%; animation-delay: 2.2s; }
+@keyframes blink {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
 }
 
-/* 头部 */
-.login-header {
-  text-align: center;
-  margin-bottom: 36px;
+/* 品牌文案 */
+.brand-content {
+  position: relative;
+  z-index: 1;
+  max-width: 420px;
 }
 .logo-icon {
   width: 56px;
   height: 56px;
-  margin: 0 auto 16px;
-  animation: logoSpin 10s linear infinite;
+  margin-bottom: 28px;
+  animation: logoSpin 12s linear infinite;
 }
 @keyframes logoSpin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  to { transform: rotate(360deg); }
+}
+.brand-content h1 {
+  margin: 0 0 12px;
+  font-size: 34px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 4px;
+}
+.brand-sub {
+  margin: 0 0 44px;
+  font-size: 12px;
+  color: rgba(198, 227, 255, 0.75);
+  letter-spacing: 3px;
+  font-family: 'Courier New', monospace;
+}
+.brand-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.brand-features li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  font-size: 15px;
+  color: #e4f1ff;
+}
+.feat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4cd6ff;
+  box-shadow: 0 0 10px rgba(76, 214, 255, 0.8);
+  flex-shrink: 0;
+}
+.brand-footer {
+  position: absolute;
+  left: 72px;
+  bottom: 32px;
+  font-size: 10px;
+  color: rgba(198, 227, 255, 0.4);
+  letter-spacing: 2px;
+  font-family: 'Courier New', monospace;
+}
+
+/* ===================== 右侧表单区 ===================== */
+.form-panel {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(165deg, #f6faff 0%, #e9f2fc 100%);
+  overflow: hidden;
+  padding: 40px 24px;
+}
+.grid-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(11, 110, 245, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(11, 110, 245, 0.05) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+.login-card {
+  width: 400px;
+  max-width: 100%;
+  position: relative;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #d3e3f7;
+  border-radius: 16px;
+  padding: 44px 40px 32px;
+  box-shadow:
+    0 20px 50px rgba(20, 80, 170, 0.12),
+    0 4px 12px rgba(20, 80, 170, 0.06);
+  z-index: 1;
+}
+
+.login-header {
+  margin-bottom: 30px;
 }
 .login-header h2 {
   margin: 0;
-  font-size: 22px;
-  font-weight: 600;
+  font-size: 24px;
+  font-weight: 700;
   color: #10314f;
-  letter-spacing: 4px;
 }
 .login-header p {
   margin: 8px 0 0;
-  font-size: 11px;
+  font-size: 13px;
   color: #628cb8;
-  letter-spacing: 3px;
-  font-family: 'Courier New', monospace;
 }
 
 /* 输入框组 */
@@ -273,13 +350,23 @@ async function handleLogin() {
   40%, 100% { left: 140%; }
 }
 
-/* 底部 */
-.login-footer {
+.login-tip {
+  margin-top: 22px;
   text-align: center;
-  margin-top: 24px;
-  font-size: 10px;
+  font-size: 12px;
   color: #8fa9c6;
+}
+.form-footer {
+  position: absolute;
+  bottom: 24px;
+  font-size: 10px;
+  color: #9db4d0;
   letter-spacing: 2px;
   font-family: 'Courier New', monospace;
+}
+
+/* 窄屏隐藏品牌区 */
+@media (max-width: 900px) {
+  .brand-panel { display: none; }
 }
 </style>

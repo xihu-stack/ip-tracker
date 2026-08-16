@@ -46,7 +46,7 @@
           </el-step>
           <el-step title="IP 解析">
             <template #description>
-              服务器收到 IP 后，通过 ip-api.com 在线查询解析出省份、城市、区县和经纬度信息
+              服务器收到 IP 后，通过 cip.cc 在线查询解析出省份和城市（cip.cc 限流时自动切换 pconline 备用源），经纬度由内置的中国城市坐标表给出
             </template>
           </el-step>
           <el-step title="管理查询">
@@ -71,7 +71,7 @@
       </el-table>
       <el-alert type="info" :closable="false" style="margin-top: 12px" show-icon>
         <template #title>
-          设备总数 = 在线 + 离线，互为补集。判定依据是员工电脑的上报时间戳（非主动探测）。电脑关机/断网后最多 10 分钟页面会显示离线。若员工已离职或已卸载脚本，可在员工列表中删除该设备。
+          设备总数 = 在线 + 离线，互为补集。判定依据是员工电脑的上报时间戳（非主动探测）。电脑关机/断网后最多 20 分钟页面会显示离线。若员工已离职或已卸载脚本，可在员工列表中删除该设备。
         </template>
       </el-alert>
     </el-card>
@@ -138,13 +138,74 @@
       </el-table>
     </el-card>
 
-    <el-card>
+    <el-card style="margin-bottom: 16px">
       <template #header><b>数据去重规则</b></template>
       <p class="guide-text">
         同一员工、同一 IP 地址，<b>1 小时内</b>不会重复记录。例如员工电脑每 10 分钟上报一次，
         如果 IP 没变，服务器只会记录一次，不会产生冗余数据。只有当 IP 发生变化（如切换网络、
         移动办公）时才会新增一条记录。
       </p>
+    </el-card>
+
+    <el-card>
+      <template #header><b>服务器运维手册（管理员）</b></template>
+      <el-collapse>
+        <el-collapse-item title="① 更新最新代码" name="update">
+          <p class="step-desc">在服务器上执行三条命令即可升级（前端构建产物随仓库提交，无需在服务器上构建）：</p>
+          <pre class="cmd">cd /opt/ip-tracker
+git pull
+sudo systemctl restart ip-tracker</pre>
+          <p class="step-desc">
+            验证：<code>systemctl status ip-tracker</code> 为 active、<code>journalctl -u ip-tracker -n 20</code> 无报错；
+            浏览器 <b>Ctrl+F5</b> 强刷避免旧缓存。升级不影响数据库数据，结构变更在启动时自动完成。
+          </p>
+        </el-collapse-item>
+        <el-collapse-item title="② 服务管理" name="service">
+          <pre class="cmd">systemctl status ip-tracker      # 查看状态
+systemctl restart ip-tracker     # 重启
+systemctl stop ip-tracker        # 停止
+journalctl -u ip-tracker -f      # 实时日志</pre>
+        </el-collapse-item>
+        <el-collapse-item title="③ 忘记密码：命令行重置" name="password">
+          <p class="step-desc">在 <code>/opt/ip-tracker</code> 目录下执行（把 <code>NewPass@123</code> 换成新密码）：</p>
+          <pre class="cmd">venv/bin/python - &lt;&lt;'EOF'
+import sys
+sys.path.insert(0, 'server')
+from auth import hash_password
+from database import SessionLocal
+from models import Admin
+
+db = SessionLocal()
+a = db.query(Admin).filter_by(username='admin').first()
+if not a:
+    a = Admin(username='admin', hashed_password='')
+    db.add(a)
+a.hashed_password = hash_password('NewPass@123')
+db.commit()
+print('密码已重置')
+EOF</pre>
+          <p class="step-desc">注意：必须在 /opt/ip-tracker 目录运行，数据库是相对路径，换目录会新建空库。</p>
+        </el-collapse-item>
+        <el-collapse-item title="④ 数据备份与恢复" name="backup">
+          <p class="step-desc">全部业务数据都在一个 SQLite 文件里，备份它就备份了一切（在线备份，不必停服务）：</p>
+          <pre class="cmd">sqlite3 /opt/ip-tracker/ip_tracker.db ".backup /root/backup/ip_tracker_$(date +%F).db"</pre>
+          <p class="step-desc">
+            恢复：先 <code>systemctl stop ip-tracker</code>，用备份文件覆盖 <code>/opt/ip-tracker/ip_tracker.db</code>，再 start。
+            建议 crontab 配置每日自动备份，完整命令见仓库 docs/运维手册.md。
+          </p>
+        </el-collapse-item>
+        <el-collapse-item title="⑤ 常见问题排查" name="trouble">
+          <el-table :data="troubleList" stripe size="small">
+            <el-table-column prop="issue" label="现象" width="170" />
+            <el-table-column prop="fix" label="处理方法" />
+          </el-table>
+        </el-collapse-item>
+      </el-collapse>
+      <el-alert type="info" :closable="false" style="margin-top: 12px" show-icon>
+        <template #title>
+          完整运维手册（含防火墙放行、安全加固清单、客户端排障、API 速查）见仓库 docs/运维手册.md
+        </template>
+      </el-alert>
     </el-card>
   </div>
 </template>
@@ -159,14 +220,22 @@ const pageList = ref([
 ])
 
 const statusList = ref([
-  { status: '在线', tag: 'success', condition: '员工电脑最近 10 分钟内成功上报', meaning: '电脑开机、网络正常、计划任务正常运行' },
-  { status: '离线', tag: 'warning', condition: '超过 10 分钟没有成功上报', meaning: '电脑关机、断网、计划任务异常或脚本被卸载' },
+  { status: '在线', tag: 'success', condition: '员工电脑最近 20 分钟内成功上报', meaning: '电脑开机、网络正常、计划任务正常运行' },
+  { status: '离线', tag: 'warning', condition: '超过 20 分钟没有成功上报', meaning: '电脑关机、断网、计划任务异常或脚本被卸载' },
 ])
 
 const fileList = ref([
   { file: 'C:\\ProgramData\\Company_Network\\', desc: '安装目录', visible: '否' },
   { file: '└ report.ps1', desc: 'IP 上报脚本', visible: '否' },
   { file: '计划任务: Company_IP_Tracker', desc: 'SYSTEM 级计划任务，每 10 分钟执行一次，开机即运行', visible: '否' },
+])
+
+const troubleList = ref([
+  { issue: '后台打不开', fix: 'systemctl status ip-tracker 查状态；起不来查 journalctl -u ip-tracker -n 50；服务正常则检查防火墙是否放行 8000' },
+  { issue: '设备显示离线', fix: '在线阈值 20 分钟。终端执行 schtasks /query /TN "Company_IP_Tracker" 查计划任务是否在跑，或手动运行 report.ps1 测试上报' },
+  { issue: '上报返回 403', fix: '客户端上报地址必须走 9000 端口且以 /api/report 结尾，检查 deploy.ps1 里的 SERVER_URL' },
+  { issue: '归属地异常/未知', fix: 'cip.cc 限流时自动切 pconline 备用源，稍后自动恢复；历史数据可在服务器运行 server/cleanup_geo.py 批量修正' },
+  { issue: '改了前端不生效', fix: '前端是构建产物，改 src 后必须在开发机 npm run build 并提交 dist；浏览器 Ctrl+F5 清缓存' },
 ])
 </script>
 
@@ -179,5 +248,17 @@ const fileList = ref([
 .step-desc {
   color: #909399;
   margin: 4px 0;
+}
+.cmd {
+  background: #f0f6ff;
+  border: 1px solid #d8e6f8;
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 12.5px;
+  color: #1a3a5c;
+  line-height: 1.7;
+  overflow-x: auto;
+  margin: 8px 0 12px;
 }
 </style>
