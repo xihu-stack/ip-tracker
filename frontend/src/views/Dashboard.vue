@@ -280,8 +280,15 @@ async function loadData() {
     stats.value = dashRes.data
     recentEmployees.value = empRes.data.data
     offlineList.value = dashRes.data.offline_list || []
-    mapPoints.value = mapRes.data.points || []
-    unmappedList.value = mapRes.data.unmapped || []
+    // 兼容新旧后端格式：新版返回 {points, unmapped}，旧版直接返回数组
+    const raw = mapRes.data
+    if (Array.isArray(raw)) {
+      mapPoints.value = raw
+      unmappedList.value = []
+    } else {
+      mapPoints.value = raw.points || []
+      unmappedList.value = raw.unmapped || []
+    }
     await nextTick()
     initMap(mapPoints.value)
   } catch {}
