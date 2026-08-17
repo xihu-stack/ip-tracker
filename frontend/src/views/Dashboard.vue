@@ -143,6 +143,12 @@ function shortCity(name) {
   return String(name || '').split('-').pop()
 }
 
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ))
+}
+
 function barWidth(count) {
   const max = rankList.value[0]?.count || 1
   return Math.max(8, Math.round(count / max * 100))
@@ -191,15 +197,19 @@ async function initMap(mapData) {
       confine: true,
       extraCssText: 'box-shadow: 0 4px 16px rgba(0,0,0,0.12); border-radius: 8px;',
       formatter(params) {
-        if (params.seriesType === 'effectScatter') {
-          const d = params.data
-          const maxShow = 5
-          const emps = d.employees.length > maxShow
-            ? d.employees.slice(0, maxShow).join('、') + ` 等${d.employees.length}台`
-            : d.employees.join('、')
-          return `<div style="max-width:280px;word-break:break-all"><b style="color:#2563eb;font-size:14px">${d.name}</b><br/><span style="color:#64748b">设备数量：</span><b>${d.value[2]}</b> 台<br/><span style="color:#64748b">设备：</span>${emps}</div>`
-        }
-        return params.name
+        if (params.seriesType !== 'effectScatter') return params.name
+        const d = params.data
+        const maxShow = 8
+        const list = d.employees.slice(0, maxShow)
+          .map(n => `<div style="line-height:1.9">· ${escapeHtml(n)}</div>`)
+          .join('')
+        const more = d.employees.length > maxShow
+          ? `<div style="color:#94a3b8;line-height:1.9">…共 ${d.employees.length} 台</div>`
+          : ''
+        return `<div style="max-width:260px;overflow-wrap:anywhere">` +
+          `<b style="color:#ea580c;font-size:14px">${escapeHtml(shortCity(d.name))}</b>` +
+          `<span style="color:#64748b"> · ${d.value[2]} 台设备</span>` +
+          `<div style="margin-top:4px">${list}${more}</div></div>`
       }
     },
     geo: {
