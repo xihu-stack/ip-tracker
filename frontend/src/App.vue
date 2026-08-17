@@ -38,7 +38,11 @@
     </el-aside>
     <el-container>
       <el-main :class="showSidebar ? 'main-content' : 'main-fullscreen'">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <transition name="page" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </el-main>
     </el-container>
 
@@ -128,15 +132,37 @@ async function handleChangePassword() {
   --warning: #d97706;
 }
 
-body { margin: 0; background: var(--bg-base); color: var(--text-primary); }
+body {
+  margin: 0;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: rgba(37, 99, 235, 0.16); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #c3cede; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #a9bbd1; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* 页面切换动画 */
+.page-enter-active, .page-leave-active { transition: opacity 0.18s ease, transform 0.18s ease; }
+.page-enter-from { opacity: 0; transform: translateY(8px); }
+.page-leave-to { opacity: 0; transform: translateY(-4px); }
+
+/* 统一页头 */
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+.page-header h2 { margin: 0; font-size: 20px; font-weight: 700; }
+.page-sub { margin: 6px 0 0; font-size: 12.5px; color: var(--text-muted); }
 
 .app-container { background: var(--bg-base); }
-.main-content { background: var(--bg-base); padding: 24px; min-height: 100vh; }
+.main-content { background: linear-gradient(180deg, #f6f8fc 0%, #f2f5fa 100%); padding: 24px; min-height: 100vh; }
 .main-fullscreen { padding: 0; }
 
 /* ==================== 侧边栏 ==================== */
 .sidebar {
-  background: var(--bg-sidebar);
+  background: linear-gradient(180deg, #1e293b 0%, #141d2b 100%);
   border-right: none;
   display: flex;
   flex-direction: column;
@@ -224,10 +250,25 @@ body { margin: 0; background: var(--bg-base); color: var(--text-primary); }
 
 /* ==================== 全局 Element Plus 覆盖 ==================== */
 .el-card {
-  border-radius: 10px !important;
+  border-radius: 12px !important;
   border: 1px solid var(--border-color) !important;
   box-shadow: 0 1px 4px rgba(0,0,0,0.04) !important;
+  transition: box-shadow 0.2s ease;
 }
+.el-card:hover {
+  box-shadow: 0 4px 16px rgba(15, 40, 90, 0.07) !important;
+}
+.el-table {
+  --el-table-border-color: #eef2f7;
+  --el-table-header-bg-color: #f8fafc;
+}
+.el-table th.el-table__cell {
+  background: #f8fafc !important;
+  color: #475569;
+  font-weight: 600;
+}
+.el-dialog { border-radius: 12px; }
+.el-tag { border-radius: 6px; }
 
 .el-button--primary:not(.is-link) {
   background: var(--accent) !important;

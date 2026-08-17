@@ -1,7 +1,10 @@
 <template>
   <div>
     <div class="page-header">
-      <h2>实时监控仪表盘</h2>
+      <div>
+        <h2>实时监控仪表盘</h2>
+        <p class="page-sub">设备在线状态 · 地理分布 · 上报动态（每 30 秒自动刷新）</p>
+      </div>
       <span class="live-badge">● LIVE</span>
     </div>
 
@@ -305,7 +308,7 @@ onUnmounted(() => {
   gap: 12px;
   margin-bottom: 20px;
 }
-.page-header h2 { margin: 0; font-size: 20px; font-weight: 600; }
+.page-header h2 { margin: 0; font-size: 20px; font-weight: 700; }
 .live-badge {
   font-size: 11px;
   color: var(--success);
@@ -332,6 +335,18 @@ onUnmounted(() => {
   align-items: center;
   gap: 16px;
   transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--card-accent);
+  opacity: 0.9;
 }
 .stat-card:hover {
   box-shadow: 0 2px 12px rgba(0,0,0,0.06);
@@ -351,6 +366,7 @@ onUnmounted(() => {
   font-weight: 700;
   line-height: 1;
   font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
 }
 .stat-label {
   font-size: 13px;

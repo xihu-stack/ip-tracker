@@ -1,14 +1,19 @@
 <template>
   <div>
-    <h2 style="margin-bottom: 20px">IP 历史查询</h2>
+    <div class="page-header">
+      <div>
+        <h2>IP 历史查询</h2>
+        <p class="page-sub">按员工和日期范围追溯公网 IP 变更轨迹</p>
+      </div>
+    </div>
     <el-card>
       <div class="filter-bar">
         <el-select v-model="selectedEmployee" placeholder="选择员工" filterable style="width: 280px" @change="loadRecords">
           <el-option v-for="emp in employeeList" :key="emp.id" :label="emp.name ? emp.name + ' (' + emp.hostname + ')' : emp.hostname" :value="emp.id" />
         </el-select>
-        <input type="date" v-model="startDate" @change="loadRecords" class="date-input" />
+        <el-date-picker v-model="startDate" type="date" placeholder="开始日期" value-format="YYYY-MM-DD" style="width: 150px" @change="loadRecords" />
         <span class="text-muted">至</span>
-        <input type="date" v-model="endDate" @change="loadRecords" class="date-input" />
+        <el-date-picker v-model="endDate" type="date" placeholder="结束日期" value-format="YYYY-MM-DD" style="width: 150px" @change="loadRecords" />
         <el-button type="primary" @click="loadRecords">查询</el-button>
       </div>
 
@@ -86,15 +91,6 @@ onMounted(loadEmployeeList)
   align-items: center;
   margin-bottom: 16px;
   flex-wrap: wrap;
-}
-.date-input {
-  height: 32px;
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
-  padding: 0 10px;
-  color: #606266;
-  font-size: 14px;
-  background: #fff;
 }
 .pagination-wrap {
   display: flex;

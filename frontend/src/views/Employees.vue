@@ -1,6 +1,12 @@
 <template>
   <div>
-    <h2 style="margin-bottom: 20px">员工列表</h2>
+    <div class="page-header">
+      <div>
+        <h2>员工列表</h2>
+        <p class="page-sub">已部署终端设备清单，可编辑姓名、查看历史、清理离职设备</p>
+      </div>
+      <el-tag effect="plain" round size="large">共 {{ total }} 台设备</el-tag>
+    </div>
     <el-card>
       <div class="toolbar">
         <el-input v-model="search" placeholder="搜索主机名或姓名" style="width: 300px" clearable @clear="handleSearch" @keyup.enter="handleSearch">
@@ -150,6 +156,7 @@ onMounted(loadData)
 .toolbar {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: 16px;
 }
 .pagination-wrap {

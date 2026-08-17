@@ -1,6 +1,11 @@
 <template>
   <div>
-    <h2 style="margin-bottom: 20px">使用说明</h2>
+    <div class="page-header">
+      <div>
+        <h2>使用说明</h2>
+        <p class="page-sub">平台功能 · 部署流程 · 服务器运维手册</p>
+      </div>
+    </div>
 
     <el-card style="margin-bottom: 16px">
       <template #header><b>系统简介</b></template>
