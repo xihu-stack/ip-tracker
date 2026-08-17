@@ -41,6 +41,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="IP 定位追踪平台", lifespan=lifespan)
 
+APP_VERSION = "1.1.0"
+
+
+@app.get("/api/version")
+def version():
+    """版本号（无需登录），用于排查服务器运行的代码版本。"""
+    return {"version": APP_VERSION}
+
 # 前后端同源部署（后端直接托管 frontend/dist），无需 CORS；
 # 之前的 allow_origins=["*"] + allow_credentials=True 组合不规范，已移除。
 

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import time
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
@@ -11,14 +12,31 @@ from auth import get_current_admin
 
 router = APIRouter(prefix="/api", tags=["query"])
 
+# 失联判定：超过 30 天未上报视为失联（区别于普通离线，多为离职/重装设备）
+STALE_DAYS = 30
+
+
+def _latest_by_employee(db: Session) -> dict:
+    """一条窗口函数 SQL 取出每个员工的最新记录，替代逐个员工查询（N+1）。"""
+    rn = func.row_number().over(
+        partition_by=IpRecord.employee_id,
+        order_by=IpRecord.reported_at.desc()
+    ).label("rn")
+    sub = db.query(
+        IpRecord.employee_id, IpRecord.ip, IpRecord.city, IpRecord.reported_at, rn
+    ).subquery()
+    return {row.employee_id: row for row in db.query(sub).filter(sub.c.rn == 1).all()}
+
 
 @router.get("/dashboard")
 def dashboard(db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)):
     total_employees = db.query(func.count(Employee.id)).scalar()
     total_records = db.query(func.count(IpRecord.id)).scalar()
 
+    now = datetime.now()
     # 用 Employee.last_seen_at 判断在线（每次上报都更新，不受历史去重影响）
-    threshold = datetime.now() - timedelta(minutes=20)
+    threshold = now - timedelta(minutes=20)
+    stale_threshold = now - timedelta(days=STALE_DAYS)
     online_count = db.query(func.count(Employee.id)).filter(
         Employee.last_seen_at >= threshold
     ).scalar()
@@ -26,18 +44,30 @@ def dashboard(db: Session = Depends(get_db), _: Admin = Depends(get_current_admi
     offline_count = total_employees - online_count
 
     # 今日新增记录数
-    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     day_records = db.query(func.count(IpRecord.id)).filter(
         IpRecord.reported_at >= today_start
     ).scalar()
 
-    # 离线设备列表
+    # 最近 24 小时逐小时上报量（仪表盘"今日上报"卡片迷你趋势）
+    hour_rows = db.query(
+        func.strftime("%Y-%m-%d %H:00", IpRecord.reported_at).label("h"),
+        func.count(IpRecord.id)
+    ).filter(IpRecord.reported_at >= now - timedelta(hours=24)).group_by("h").all()
+    hour_counts = {r[0]: r[1] for r in hour_rows}
+    hourly = []
+    for i in range(24, 0, -1):
+        bucket = (now - timedelta(hours=i)).replace(minute=0, second=0, microsecond=0)
+        hourly.append({"hour": bucket.hour, "count": hour_counts.get(bucket.strftime("%Y-%m-%d %H:00"), 0)})
+
+    # 离线设备列表（最新记录用窗口函数一次取出）
     offline_employees = db.query(Employee).filter(
         Employee.last_seen_at < threshold
     ).all()
+    latest_map = _latest_by_employee(db)
     offline_list = []
     for emp in offline_employees:
-        latest = db.query(IpRecord).filter(IpRecord.employee_id == emp.id).order_by(IpRecord.reported_at.desc()).first()
+        latest = latest_map.get(emp.id)
         offline_list.append({
             "id": emp.id,
             "hostname": emp.hostname,
@@ -45,7 +75,7 @@ def dashboard(db: Session = Depends(get_db), _: Admin = Depends(get_current_admi
             "latest_ip": latest.ip if latest else "-",
             "latest_city": latest.city if latest else "-",
             "latest_time": emp.last_seen_at.strftime("%Y-%m-%d %H:%M:%S") if emp.last_seen_at else (latest.reported_at.strftime("%Y-%m-%d %H:%M:%S") if latest else "-"),
-            "status": "never" if not latest else "offline"
+            "status": "never" if not latest else ("stale" if emp.last_seen_at and emp.last_seen_at < stale_threshold else "offline")
         })
 
     return {
@@ -54,6 +84,7 @@ def dashboard(db: Session = Depends(get_db), _: Admin = Depends(get_current_admi
         "online_count": online_count,
         "offline_count": offline_count,
         "day_records": day_records,
+        "hourly": hourly,
         "offline_list": offline_list
     }
 
@@ -62,7 +93,7 @@ def dashboard(db: Session = Depends(get_db), _: Admin = Depends(get_current_admi
 def list_employees(
     search: str = Query(default=""),
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
     db: Session = Depends(get_db),
     _: Admin = Depends(get_current_admin)
 ):
@@ -75,11 +106,13 @@ def list_employees(
     total = query.count()
     employees = query.order_by(Employee.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
 
-    threshold = datetime.now() - timedelta(minutes=20)
+    now = datetime.now()
+    threshold = now - timedelta(minutes=20)
+    stale_threshold = now - timedelta(days=STALE_DAYS)
+    latest_map = _latest_by_employee(db)
     result = []
     for emp in employees:
-        latest = db.query(IpRecord).filter(IpRecord.employee_id == emp.id).order_by(IpRecord.reported_at.desc()).first()
-        is_online = emp.last_seen_at and emp.last_seen_at >= threshold
+        latest = latest_map.get(emp.id)
         result.append({
             "id": emp.id,
             "hostname": emp.hostname,
@@ -88,7 +121,8 @@ def list_employees(
             "latest_ip": latest.ip if latest else "-",
             "latest_city": latest.city if latest else "-",
             "latest_time": emp.last_seen_at.strftime("%Y-%m-%d %H:%M:%S") if emp.last_seen_at else (latest.reported_at.strftime("%Y-%m-%d %H:%M:%S") if latest else "-"),
-            "is_online": is_online
+            "is_online": bool(emp.last_seen_at and emp.last_seen_at >= threshold),
+            "is_stale": bool(emp.last_seen_at and emp.last_seen_at < stale_threshold)
         })
 
     return {"total": total, "page": page, "page_size": page_size, "data": result}
@@ -138,9 +172,16 @@ def employee_records(
     }
 
 
+# map-data 结果缓存 30 秒：仪表盘每 30 秒轮询一次，设备多时避免每次全表聚合
+_map_cache = {"ts": 0.0, "data": None}
+_MAP_CACHE_TTL = 30
+
+
 @router.get("/map-data")
 def map_data(db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)):
     """返回地图散点数据：按城市聚合，包含经纬度和设备数量"""
+    if _map_cache["data"] is not None and time.time() - _map_cache["ts"] < _MAP_CACHE_TTL:
+        return _map_cache["data"]
     # 获取每个员工最新一条记录
     from sqlalchemy import and_
     subquery = db.query(
@@ -186,12 +227,14 @@ def map_data(db: Session = Depends(get_db), _: Admin = Depends(get_current_admin
             label = f"{emp.name} ({emp.hostname})" if emp.name else emp.hostname
             city_map[key]["employees"].append(label)
 
-    return {
+    result = {
         "points": list(city_map.values()),
         "unmapped": [
             {"city": k, "count": v} for k, v in sorted(unmapped.items(), key=lambda x: -x[1])
         ],
     }
+    _map_cache.update(ts=time.time(), data=result)
+    return result
 
 
 class UpdateEmployeeRequest(BaseModel):
