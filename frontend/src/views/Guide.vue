@@ -86,7 +86,7 @@
       <el-timeline>
         <el-timeline-item type="primary" :hollow="false">
           <b>确认配置</b>
-          <p class="step-desc">打开 <code>deploy.ps1</code>，确认第 17 行的 <code>SERVER_URL</code> 为实际服务器地址</p>
+          <p class="step-desc">打开 <code>deploy.ps1</code>，搜索 <code>SERVER_URL</code> 确认为实际服务器地址（下方可选的 <code>REPORT_TOKEN</code> 为上报令牌，默认留空即可）</p>
         </el-timeline-item>
         <el-timeline-item type="primary" :hollow="false">
           <b>创建软件包</b>

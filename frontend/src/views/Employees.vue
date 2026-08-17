@@ -26,11 +26,11 @@
         <el-table-column prop="latest_ip" label="最新 IP" />
         <el-table-column prop="latest_city" label="所在城市" />
         <el-table-column prop="latest_time" label="最后上报时间" />
-        <el-table-column label="状态" width="80">
+        <el-table-column label="状态" width="90">
           <template #default="{ row }">
-            <el-tag :type="row.is_online ? 'success' : 'info'" size="small">
-              {{ row.is_online ? '在线' : '离线' }}
-            </el-tag>
+            <el-tag v-if="row.is_online" type="success" size="small">在线</el-tag>
+            <el-tag v-else-if="row.is_stale" type="info" size="small">失联30天+</el-tag>
+            <el-tag v-else type="warning" size="small">离线</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="210">
@@ -157,12 +157,16 @@ onMounted(loadData)
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-bottom: 16px;
 }
 .pagination-wrap {
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .text-muted { color: #909399; }
 </style>

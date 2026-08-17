@@ -34,6 +34,7 @@
           <el-icon><SwitchButton /></el-icon>
           <span>退出登录</span>
         </div>
+        <div class="footer-version" v-if="appVersion">v{{ appVersion }}</div>
       </div>
     </el-aside>
     <el-container>
@@ -53,7 +54,7 @@
           <el-input v-model="pwdForm.old_password" type="password" show-password />
         </el-form-item>
         <el-form-item label="新密码">
-          <el-input v-model="pwdForm.new_password" type="password" show-password />
+          <el-input v-model="pwdForm.new_password" type="password" show-password placeholder="至少 8 位，需包含字母和数字" />
         </el-form-item>
         <el-form-item label="确认密码">
           <el-input v-model="pwdForm.confirm" type="password" show-password />
@@ -68,7 +69,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { changePassword } from './api'
@@ -77,6 +78,19 @@ const route = useRoute()
 const router = useRouter()
 const currentPath = computed(() => route.path)
 const showSidebar = computed(() => route.path !== '/login')
+
+const appVersion = ref('')
+onMounted(async () => {
+  try {
+    const res = await fetch('/api/version')
+    const data = await res.json()
+    appVersion.value = data.version || ''
+  } catch {}
+})
+
+function passwordOk(p) {
+  return p.length >= 8 && /[A-Za-z]/.test(p) && /\d/.test(p)
+}
 
 function handleLogout() {
   localStorage.removeItem('token')
@@ -96,8 +110,8 @@ async function handleChangePassword() {
     ElMessage.warning('两次密码不一致')
     return
   }
-  if (pwdForm.value.new_password.length < 6) {
-    ElMessage.warning('新密码至少 6 位')
+  if (!passwordOk(pwdForm.value.new_password)) {
+    ElMessage.warning('新密码至少 8 位，且需同时包含字母和数字')
     return
   }
   pwdLoading.value = true
@@ -247,6 +261,21 @@ body {
 }
 .footer-btn:hover { color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.06); }
 .logout-btn:hover { color: var(--danger); background: rgba(220,38,38,0.1); }
+.footer-version {
+  margin-top: 4px;
+  padding: 0 14px;
+  font-size: 10px;
+  color: rgba(255,255,255,0.25);
+  font-family: 'Courier New', monospace;
+  letter-spacing: 1px;
+}
+
+/* 窄屏适配 */
+@media (max-width: 768px) {
+  .page-header { flex-wrap: wrap; gap: 8px; }
+  .el-dialog { width: 92vw !important; }
+  .main-content { padding: 12px; }
+}
 
 /* ==================== 全局 Element Plus 覆盖 ==================== */
 .el-card {

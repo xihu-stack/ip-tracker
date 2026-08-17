@@ -46,8 +46,8 @@ import { getEmployees, getEmployeeRecords } from '../api'
 const route = useRoute()
 const employeeList = ref([])
 const selectedEmployee = ref(null)
-const startDate = ref(null)
-const endDate = ref(null)
+const startDate = ref('')
+const endDate = ref('')
 const records = ref([])
 const loading = ref(false)
 const page = ref(1)
@@ -56,7 +56,7 @@ const total = ref(0)
 
 async function loadEmployeeList() {
   try {
-    const res = await getEmployees({ page: 1, page_size: 100 })
+    const res = await getEmployees({ page: 1, page_size: 500 })
     employeeList.value = res.data.data
 
     if (route.query.employee_id) {

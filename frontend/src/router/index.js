@@ -1,16 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Dashboard from '../views/Dashboard.vue'
-import Employees from '../views/Employees.vue'
-import History from '../views/History.vue'
-import Guide from '../views/Guide.vue'
-import Login from '../views/Login.vue'
 
+// 路由懒加载：每个页面独立分包，首屏只加载登录页所需的代码
 const routes = [
-  { path: '/login', name: 'Login', component: Login, meta: { public: true } },
-  { path: '/', name: 'Dashboard', component: Dashboard },
-  { path: '/employees', name: 'Employees', component: Employees },
-  { path: '/history', name: 'History', component: History },
-  { path: '/guide', name: 'Guide', component: Guide },
+  { path: '/login', name: 'Login', component: () => import('../views/Login.vue'), meta: { public: true } },
+  { path: '/', name: 'Dashboard', component: () => import('../views/Dashboard.vue') },
+  { path: '/employees', name: 'Employees', component: () => import('../views/Employees.vue') },
+  { path: '/history', name: 'History', component: () => import('../views/History.vue') },
+  { path: '/guide', name: 'Guide', component: () => import('../views/Guide.vue') },
 ]
 
 const router = createRouter({

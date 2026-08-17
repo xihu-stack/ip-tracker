@@ -9,7 +9,7 @@
     </div>
 
     <el-row :gutter="16">
-      <el-col :span="6" v-for="item in statCards" :key="item.label">
+      <el-col :span="6" :xs="24" :sm="12" :md="6" v-for="item in statCards" :key="item.label">
         <div class="stat-card" :style="{ '--card-accent': item.color, '--card-bg': item.bg }">
           <div class="stat-icon-wrap" :style="{ background: item.bg }">
             <el-icon :size="22" :style="{ color: item.color }"><component :is="item.icon" /></el-icon>
@@ -17,6 +17,12 @@
           <div class="stat-info">
             <div class="stat-value" :style="{ color: item.color }">{{ item.value }}</div>
             <div class="stat-label">{{ item.label }}</div>
+          </div>
+          <div class="stat-spark" v-if="item.spark" :title="'最近24小时上报趋势'">
+            <span
+              v-for="(n, i) in item.spark" :key="i" class="spark-bar"
+              :style="{ height: sparkH(n, item.spark), background: item.color }"
+            ></span>
           </div>
         </div>
       </el-col>
@@ -67,8 +73,8 @@
             <el-table-column prop="latest_time" label="最后上报时间" />
             <el-table-column label="状态" width="100">
               <template #default="{ row }">
-                <el-tag :type="row.status === 'never' ? 'danger' : 'warning'" size="small">
-                  {{ row.status === 'never' ? '从未上报' : '离线' }}
+                <el-tag :type="row.status === 'never' ? 'danger' : (row.status === 'stale' ? 'info' : 'warning')" size="small">
+                  {{ row.status === 'never' ? '从未上报' : (row.status === 'stale' ? '失联30天+' : '离线') }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -125,8 +131,15 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import * as echarts from 'echarts'
+// ECharts 按需引入：只打包用到的图表类型，显著减小体积
+import * as echarts from 'echarts/core'
+import { MapChart, ScatterChart, EffectScatterChart } from 'echarts/charts'
+import { GeoComponent, TooltipComponent } from 'echarts/components'
+import { LabelLayout } from 'echarts/features'
+import { CanvasRenderer } from 'echarts/renderers'
 import { getDashboard, getEmployees, getMapData } from '../api'
+
+echarts.use([MapChart, ScatterChart, EffectScatterChart, GeoComponent, TooltipComponent, LabelLayout, CanvasRenderer])
 
 const stats = ref({ total_employees: 0, online_count: 0, offline_count: 0, day_records: 0, total_records: 0 })
 const recentEmployees = ref([])
@@ -158,8 +171,13 @@ const statCards = computed(() => [
   { label: '设备总数', value: stats.value.total_employees, color: '#2563eb', bg: '#eff6ff', icon: 'Monitor' },
   { label: '当前在线', value: stats.value.online_count, color: '#16a34a', bg: '#f0fdf4', icon: 'Connection' },
   { label: '离线设备', value: stats.value.offline_count, color: '#dc2626', bg: '#fef2f2', icon: 'Warning' },
-  { label: '今日上报', value: stats.value.day_records, color: '#d97706', bg: '#fffbeb', icon: 'DataLine' },
+  { label: '今日上报', value: stats.value.day_records, color: '#d97706', bg: '#fffbeb', icon: 'DataLine', spark: stats.value.hourly?.map(h => h.count) },
 ])
+
+function sparkH(n, arr) {
+  const max = Math.max(...arr, 1)
+  return `${Math.max(3, Math.round(n / max * 26))}px`
+}
 
 let chinaJsonPromise = null
 function getChinaJson() {
@@ -287,7 +305,7 @@ async function initMap(mapData) {
 
 async function loadData() {
   try {
-    const [dashRes, empRes, mapRes] = await Promise.all([getDashboard(), getEmployees({ page: 1, page_size: 100 }), getMapData()])
+    const [dashRes, empRes, mapRes] = await Promise.all([getDashboard(), getEmployees({ page: 1, page_size: 500 }), getMapData()])
     stats.value = dashRes.data
     recentEmployees.value = empRes.data.data
     offlineList.value = dashRes.data.offline_list || []
@@ -390,6 +408,22 @@ onUnmounted(() => {
   font-size: 13px;
   color: var(--text-muted);
   margin-top: 4px;
+}
+
+/* 今日上报迷你趋势（最近24小时） */
+.stat-spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 28px;
+  margin-left: auto;
+  opacity: 0.55;
+}
+.spark-bar {
+  width: 4px;
+  border-radius: 1px;
+  min-height: 3px;
+  display: inline-block;
 }
 
 /* 卡片标题 */
