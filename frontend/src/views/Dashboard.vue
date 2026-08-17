@@ -224,12 +224,12 @@ async function initMap(mapData) {
     animationDuration: 800,
     animationEasing: 'cubicOut',
     series: [
-      // 底层光晕：设备越多的城市光圈越大，远看即可定位
+      // 底层光晕：设备越多光圈越大，但设上限（90px）防止大城市糊成一片盖住周边
       {
         type: 'scatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize(val) { return Math.sqrt(val[2]) * 26 + 20 },
+        symbolSize(val) { return Math.min(18 + Math.sqrt(val[2]) * 14, 90) },
         itemStyle: { color: 'rgba(234, 88, 12, 0.10)' },
         silent: true,
         z: 1
@@ -239,7 +239,7 @@ async function initMap(mapData) {
         type: 'effectScatter',
         coordinateSystem: 'geo',
         data: scatterData,
-        symbolSize(val) { return Math.sqrt(val[2]) * 8 + 10 },
+        symbolSize(val) { return Math.min(10 + Math.sqrt(val[2]) * 4, 30) },
         rippleEffect: { brushType: 'stroke', scale: 3, period: 4 },
         itemStyle: {
           color: {
