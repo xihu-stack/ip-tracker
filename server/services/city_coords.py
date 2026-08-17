@@ -154,6 +154,9 @@ CITY_COORDS = {
     "巴音郭楞": (41.7687, 86.1509), "阿克苏": (41.1673, 80.2610), "克孜勒苏": (39.7134, 76.1677),
     "喀什": (39.4677, 75.9894), "和田": (37.1124, 79.9146), "伊犁": (43.9191, 81.3244),
     "塔城": (46.7453, 82.9857), "阿勒泰": (47.8484, 88.1396),
+    # 港澳台（不在 PROVINCE_COORDS 里，缺了会导致这些地区设备从地图上消失）
+    "香港": (22.3193, 114.1694), "澳门": (22.1987, 113.5439),
+    "台北": (25.0330, 121.5654), "高雄": (22.6273, 120.3014), "台中": (24.1477, 120.6736),
 }
 
 # 省级经纬度兜底：城市没命中时，按省份中心打点（键为省短名）
@@ -184,10 +187,23 @@ def _normalize(name: str) -> str:
 
 
 def get_city_coord(city: str, province: str = ""):
-    """根据城市/省名查经纬度，返回 (lat, lon)；都查不到返回 (None, None)。"""
+    """根据城市/省名查经纬度，返回 (lat, lon)；都查不到返回 (None, None)。
+
+    匹配顺序：原名精确 → 去后缀精确 → 包含匹配 → 省中心兜底。
+    包含匹配用于 cip.cc 返回"苏州工业园区""深圳南山"这类园区/区级名称的情况：
+    取被包含的最长城市键（如"苏州"），避免全部落到省中心互相叠成一坨。
+    """
     for key in (city, _normalize(city)):
         if key and key in CITY_COORDS:
             return CITY_COORDS[key]
+    name = _normalize(city)
+    if name:
+        best = ""
+        for k in CITY_COORDS:
+            if k in name and len(k) > len(best):
+                best = k
+        if best:
+            return CITY_COORDS[best]
     for key in (province, _normalize(province)):
         if key and key in PROVINCE_COORDS:
             return PROVINCE_COORDS[key]

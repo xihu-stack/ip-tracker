@@ -74,16 +74,49 @@
       </el-col>
     </el-row>
 
-    <!-- 中国地图 -->
-    <el-card class="map-card">
-      <template #header>
-        <div class="card-title">
-          <span class="dot dot-blue"></span> 设备分布地图
-          <span class="map-hint">滚轮缩放 · 拖拽移动 · 悬停查看设备明细</span>
-        </div>
-      </template>
-      <div ref="mapChart" class="map-canvas"></div>
-    </el-card>
+    <!-- 中国地图 + 城市排行 -->
+    <el-row :gutter="16" class="map-row">
+      <el-col :span="16" :xs="24">
+        <el-card class="map-card">
+          <template #header>
+            <div class="card-title">
+              <span class="dot dot-blue"></span> 设备分布地图
+              <span class="map-hint">滚轮缩放 · 拖拽移动 · 悬停查看设备明细</span>
+            </div>
+          </template>
+          <div ref="mapChart" class="map-canvas"></div>
+        </el-card>
+      </el-col>
+      <el-col :span="8" :xs="24">
+        <el-card class="rank-card">
+          <template #header>
+            <div class="card-title">
+              <span class="dot dot-orange"></span> 城市设备排行
+            </div>
+          </template>
+          <el-alert
+            v-if="unmappedList.length"
+            type="warning" :closable="false" show-icon class="unmapped-alert"
+            :title="`有 ${unmappedTotal} 台设备未能定位到地图`"
+          >
+            <template #default>
+              {{ unmappedList.map(u => `${u.city}×${u.count}`).join('、') }}（多为归属地查询失败或境外 IP）
+            </template>
+          </el-alert>
+          <div class="rank-list" v-if="rankList.length">
+            <div v-for="(item, idx) in rankList" :key="item.city" class="rank-item">
+              <span class="rank-no" :class="'top' + Math.min(idx + 1, 4)">{{ idx + 1 }}</span>
+              <span class="rank-name" :title="item.city">{{ shortCity(item.city) }}</span>
+              <div class="rank-bar-wrap">
+                <div class="rank-bar" :style="{ width: barWidth(item.count) + '%' }"></div>
+              </div>
+              <span class="rank-count">{{ item.count }} 台</span>
+            </div>
+          </div>
+          <el-empty v-else description="暂无定位数据" :image-size="60" />
+        </el-card>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
@@ -97,6 +130,20 @@ const recentEmployees = ref([])
 const offlineList = ref([])
 const mapChart = ref(null)
 let chartInstance = null
+
+const rankList = computed(() => [...mapPoints.value].sort((a, b) => b.count - a.count))
+const mapPoints = ref([])
+const unmappedList = ref([])
+const unmappedTotal = computed(() => unmappedList.value.reduce((s, u) => s + u.count, 0))
+
+function shortCity(name) {
+  return String(name || '').split('-').pop()
+}
+
+function barWidth(count) {
+  const max = rankList.value[0]?.count || 1
+  return Math.max(8, Math.round(count / max * 100))
+}
 
 const statCards = computed(() => [
   { label: '设备总数', value: stats.value.total_employees, color: '#2563eb', bg: '#eff6ff', icon: 'Monitor' },
@@ -209,7 +256,7 @@ async function initMap(mapData) {
           show: true,
           position: 'top',
           distance: 8,
-          formatter: p => `${p.name} ${p.value[2]}台`,
+          formatter: p => `${shortCity(p.name)} ${p.value[2]}台`,
           color: '#9a3412',
           fontSize: 13,
           fontWeight: 700,
@@ -230,8 +277,10 @@ async function loadData() {
     stats.value = dashRes.data
     recentEmployees.value = empRes.data.data
     offlineList.value = dashRes.data.offline_list || []
+    mapPoints.value = mapRes.data.points || []
+    unmappedList.value = mapRes.data.unmapped || []
     await nextTick()
-    initMap(mapRes.data || [])
+    initMap(mapPoints.value)
   } catch {}
 }
 
@@ -327,6 +376,23 @@ onUnmounted(() => {
 .dot-green { background: var(--success); }
 .dot-red { background: var(--danger); }
 .dot-blue { background: var(--accent); }
+.dot-orange { background: #f97316; }
+
+/* 地图 + 排行双栏 */
+.map-row { margin-top: 16px; }
+.rank-card { height: 100%; }
+.rank-list { display: flex; flex-direction: column; max-height: 460px; overflow-y: auto; }
+.rank-item { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px dashed var(--border-color); }
+.rank-item:last-child { border-bottom: none; }
+.rank-no { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #94a3b8; background: #f1f5f9; flex-shrink: 0; }
+.rank-no.top1 { background: #ea580c; color: #fff; }
+.rank-no.top2 { background: #f97316; color: #fff; }
+.rank-no.top3 { background: #fdba74; color: #9a3412; }
+.rank-name { width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text-primary); flex-shrink: 0; }
+.rank-bar-wrap { flex: 1; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
+.rank-bar { height: 100%; background: linear-gradient(90deg, #fdba74, #f97316); border-radius: 4px; }
+.rank-count { font-size: 13px; font-weight: 600; color: var(--text-secondary); flex-shrink: 0; }
+.unmapped-alert { margin-bottom: 10px; }
 
 /* 地图画布：浅蓝海洋渐变衬托白色陆地 */
 .map-canvas {
@@ -337,9 +403,4 @@ onUnmounted(() => {
 }
 
 .sub-text { color: var(--text-muted); font-size: 12px; }
-
-/* 地图卡片（浅色，与整体一致） */
-.map-card {
-  margin-top: 16px;
-}
 </style>

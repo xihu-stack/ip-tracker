@@ -161,10 +161,15 @@ def map_data(db: Session = Depends(get_db), _: Admin = Depends(get_current_admin
     for emp in db.query(Employee).all():
         emp_cache[emp.id] = emp
 
-    # 按城市聚合
+    # 按城市聚合；无法定位（城市未知或缺坐标）的单独返回，不再静默丢弃
     city_map = {}
+    unmapped = {}
     for r in latest_records:
-        if not r.city or r.city == "未知" or r.latitude is None or r.longitude is None:
+        if not r.city or r.city == "未知":
+            unmapped["未知"] = unmapped.get("未知", 0) + 1
+            continue
+        if r.latitude is None or r.longitude is None:
+            unmapped[r.city] = unmapped.get(r.city, 0) + 1
             continue
         key = r.city
         if key not in city_map:
@@ -181,7 +186,12 @@ def map_data(db: Session = Depends(get_db), _: Admin = Depends(get_current_admin
             label = f"{emp.name} ({emp.hostname})" if emp.name else emp.hostname
             city_map[key]["employees"].append(label)
 
-    return list(city_map.values())
+    return {
+        "points": list(city_map.values()),
+        "unmapped": [
+            {"city": k, "count": v} for k, v in sorted(unmapped.items(), key=lambda x: -x[1])
+        ],
+    }
 
 
 class UpdateEmployeeRequest(BaseModel):
