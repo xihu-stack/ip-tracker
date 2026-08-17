@@ -115,7 +115,32 @@ EOF
 systemctl daemon-reload
 systemctl enable ip-tracker
 
-echo "   → 服务已注册"
+# IP 记录保留期清理（每周日 03:00，默认保留 365 天，可用 IP_TRACKER_RETENTION_DAYS 调整）
+cat > /etc/systemd/system/ip-tracker-retention.service <<EOF2
+[Unit]
+Description=IP Tracker retention cleanup
+
+[Service]
+Type=oneshot
+WorkingDirectory=$APP_DIR
+Environment=IP_TRACKER_RETENTION_DAYS=365
+ExecStart=$APP_DIR/venv/bin/python $APP_DIR/retention.py
+EOF2
+cat > /etc/systemd/system/ip-tracker-retention.timer <<EOF2
+[Unit]
+Description=Run IP Tracker retention cleanup weekly
+
+[Timer]
+OnCalendar=Sun 03:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF2
+systemctl daemon-reload
+systemctl enable ip-tracker-retention.timer
+
+echo "   → 服务已注册（含每周数据清理 timer）"
 
 # ---------- 5. 配置 Nginx 反向代理 ----------
 echo "[5/6] 配置 Nginx 反向代理..."
@@ -164,6 +189,15 @@ http {
     access_log  /var/log/nginx/access.log  main;
     sendfile            on;
     keepalive_timeout   65;
+
+    # gzip 压缩：前端 JS/CSS 约 2.7MB，压缩后传输量降 ~70%
+    gzip on;
+    gzip_min_length 1k;
+    gzip_comp_level 5;
+    gzip_vary on;
+    gzip_types text/plain text/css text/xml application/json application/javascript
+               application/xml application/xml+rss image/svg+xml;
+
     include /etc/nginx/conf.d/*.conf;
 }
 NGINXMAIN
