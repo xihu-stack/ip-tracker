@@ -266,7 +266,8 @@ async function initMap(mapData) {
           textBorderColor: '#ffffff',
           textBorderWidth: 3
         },
-        labelLayout: { hideOverlap: true },
+        // 相近城市（如苏州/南京）标签重叠时上下错开，而不是隐藏
+        labelLayout: { moveOverlap: 'shiftY' },
         emphasis: { scale: 1.4 },
         z: 2
       }
