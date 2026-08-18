@@ -85,7 +85,8 @@ import { changePassword } from './api'
 const route = useRoute()
 const router = useRouter()
 const currentPath = computed(() => route.path)
-const showSidebar = computed(() => route.path !== '/login')
+// 所有 meta.public 的页面（/login、/admin-login、/sso）都是全屏认证页，不显示后台侧边栏
+const showSidebar = computed(() => !route.meta.public)
 
 const appVersion = ref('')
 onMounted(async () => {
