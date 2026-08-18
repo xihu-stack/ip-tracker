@@ -24,6 +24,10 @@
           <el-icon><Document /></el-icon>
           <span>使用说明</span>
         </el-menu-item>
+        <el-menu-item index="/settings">
+          <el-icon><Setting /></el-icon>
+          <span>系统设置</span>
+        </el-menu-item>
       </el-menu>
       <div class="sidebar-footer">
         <div class="footer-btn" @click="showChangePassword = true">

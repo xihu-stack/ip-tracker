@@ -12,22 +12,26 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Admin
+from models import Admin, Setting
 from auth import verify_password, hash_password, create_access_token, get_current_admin
 
 router = APIRouter(prefix="/api", tags=["auth"])
 
 # ==================== SSO / OAuth2 统一门户登录（可选） ====================
-# 标准 OAuth2 授权码流程，兼容 Keycloak / Authentik / Casdoor / Authing / 钉钉等。
-# 环境变量（全部配置后才启用）：
-#   OAUTH_ENABLED=1
-#   OAUTH_AUTH_URL / OAUTH_TOKEN_URL / OAUTH_USERINFO_URL   # 提供商三个端点
-#   OAUTH_CLIENT_ID / OAUTH_CLIENT_SECRET
-#   OAUTH_SCOPE（默认 openid profile email）
-#   OAUTH_REDIRECT_URI（默认按请求地址推导：<后台地址>/api/auth/callback）
+# 标准 OAuth2 授权码流程，兼容 Keycloak / Authentik / Casdoor / Authing / 企业自建 SSO。
+# 配置来源（优先级从高到低）：
+#   1. 管理后台「系统设置 → SSO 配置」页面（存 settings 表，保存即生效，无需重启）
+#   2. 环境变量（systemd Environment 或 /opt/ip-tracker/sso.conf）：
+#      OAUTH_ENABLED / OAUTH_CLIENT_ID / OAUTH_CLIENT_SECRET / OAUTH_AUTH_URL /
+#      OAUTH_TOKEN_URL / OAUTH_USERINFO_URL / OAUTH_SCOPE / OAUTH_REDIRECT_URI
+
+SSO_SETTING_KEYS = (
+    "sso_enabled", "sso_auth_url", "sso_token_url", "sso_userinfo_url",
+    "sso_client_id", "sso_client_secret", "sso_scope", "sso_username_field",
+)
 
 
-def _load_oauth():
+def _load_env_oauth():
     if os.getenv("OAUTH_ENABLED", "").strip().lower() not in ("1", "true", "yes"):
         return None
     conf = {
@@ -38,6 +42,7 @@ def _load_oauth():
         "userinfo_url": os.getenv("OAUTH_USERINFO_URL", "").strip(),
         "scope": os.getenv("OAUTH_SCOPE", "openid profile email"),
         "redirect_uri": os.getenv("OAUTH_REDIRECT_URI", "").strip(),
+        "username_field": "",
     }
     if not (conf["client_id"] and conf["auth_url"] and conf["token_url"]):
         print("[oauth] OAUTH_ENABLED=1 但缺少 CLIENT_ID/AUTH_URL/TOKEN_URL，SSO 未启用")
@@ -45,14 +50,42 @@ def _load_oauth():
     return conf
 
 
-OAUTH = _load_oauth()
+def get_oauth(db: Session):
+    """取生效的 SSO 配置：后台页面配置(DB)优先，环境变量兜底。"""
+    try:
+        rows = {s.key: (s.value or "") for s in db.query(Setting).all()}
+    except Exception:
+        rows = {}
+    if rows:
+        if rows.get("sso_enabled") != "1":
+            return None
+        conf = {
+            "client_id": rows.get("sso_client_id", ""),
+            "client_secret": rows.get("sso_client_secret", ""),
+            "auth_url": rows.get("sso_auth_url", ""),
+            "token_url": rows.get("sso_token_url", ""),
+            "userinfo_url": rows.get("sso_userinfo_url", ""),
+            "scope": rows.get("sso_scope") or "openid profile email",
+            "redirect_uri": "",
+            "username_field": rows.get("sso_username_field", ""),
+        }
+        if conf["client_id"] and conf["auth_url"] and conf["token_url"]:
+            return conf
+        return None
+    return _load_env_oauth()
+
+
 _states = {}           # state -> {"redirect": 目标路径, "exp": 过期时间}
 _STATE_TTL = 600
 
 
-def _sso_username(info: dict) -> str:
-    """从 userinfo 里取用户名，兼容常见字段，并限制到 Admin.username 允许的长度。"""
-    for key in ("preferred_username", "username", "login", "sub", "email", "name"):
+def _sso_username(info: dict, field: str = "") -> str:
+    """从 userinfo 里取用户名：优先自定义字段（企业自建 SSO 常用 account/loginName 等），
+    再按常见字段回退，并限制到 Admin.username 允许的长度。"""
+    keys = (field, "preferred_username", "username", "login", "account", "sub", "email", "name")
+    for key in keys:
+        if not key:
+            continue
         val = info.get(key)
         if val:
             name = re.sub(r"[^\w.@-]", "_", str(val)).strip("_")
@@ -67,14 +100,15 @@ def _clean_states():
 
 
 @router.get("/auth/config")
-def auth_config():
+def auth_config(db: Session = Depends(get_db)):
     """登录页据此决定是否展示/自动跳转 SSO。"""
-    return {"sso_enabled": bool(OAUTH)}
+    return {"sso_enabled": bool(get_oauth(db))}
 
 
 @router.get("/auth/sso-login")
-def sso_login(redirect: str = "/", request: Request = None):
-    if not OAUTH:
+def sso_login(redirect: str = "/", request: Request = None, db: Session = Depends(get_db)):
+    oauth = get_oauth(db)
+    if not oauth:
         raise HTTPException(status_code=404, detail="SSO 未配置")
     # 只允许站内路径，防开放跳转
     if not redirect.startswith("/") or redirect.startswith("//"):
@@ -84,17 +118,18 @@ def sso_login(redirect: str = "/", request: Request = None):
     _states[state] = {"redirect": redirect, "exp": time.time() + _STATE_TTL}
     params = urllib.parse.urlencode({
         "response_type": "code",
-        "client_id": OAUTH["client_id"],
-        "redirect_uri": OAUTH["redirect_uri"] or f"{request.base_url}api/auth/callback",
-        "scope": OAUTH["scope"],
+        "client_id": oauth["client_id"],
+        "redirect_uri": oauth["redirect_uri"] or f"{request.base_url}api/auth/callback",
+        "scope": oauth["scope"],
         "state": state,
     })
-    return RedirectResponse(f"{OAUTH['auth_url']}?{params}")
+    return RedirectResponse(f"{oauth['auth_url']}?{params}")
 
 
 @router.get("/auth/callback")
 def auth_callback(request: Request, code: str = "", state: str = "", db: Session = Depends(get_db)):
-    if not OAUTH:
+    oauth = get_oauth(db)
+    if not oauth:
         raise HTTPException(status_code=404, detail="SSO 未配置")
     front_base = str(request.base_url)  # 例如 http://ip:8000/
 
@@ -105,34 +140,34 @@ def auth_callback(request: Request, code: str = "", state: str = "", db: Session
     if not code or not rec or rec["exp"] < time.time():
         return fail("登录状态已过期，请重新登录")
 
-    redirect_uri = OAUTH["redirect_uri"] or f"{request.base_url}api/auth/callback"
+    redirect_uri = oauth["redirect_uri"] or f"{request.base_url}api/auth/callback"
     try:
         data = urllib.parse.urlencode({
             "grant_type": "authorization_code",
             "code": code,
-            "client_id": OAUTH["client_id"],
-            "client_secret": OAUTH["client_secret"],
+            "client_id": oauth["client_id"],
+            "client_secret": oauth["client_secret"],
             "redirect_uri": redirect_uri,
         }).encode()
         req = urllib.request.Request(
-            OAUTH["token_url"], data=data,
+            oauth["token_url"], data=data,
             headers={"Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded"},
         )
         token_json = json.loads(urllib.request.urlopen(req, timeout=10).read().decode())
         access_token = token_json.get("access_token", "")
-        if not OAUTH["userinfo_url"] or not access_token:
+        if not oauth["userinfo_url"] or not access_token:
             return fail("SSO 返回异常（缺 access_token）")
         req2 = urllib.request.Request(
-            OAUTH["userinfo_url"],
+            oauth["userinfo_url"],
             headers={"Accept": "application/json", "Authorization": f"Bearer {access_token}"},
         )
         info = json.loads(urllib.request.urlopen(req2, timeout=10).read().decode())
     except Exception as e:
         return fail(f"SSO 通信失败: {str(e)[:120]}")
 
-    username = _sso_username(info)
+    username = _sso_username(info, oauth.get("username_field", ""))
     if not username:
-        return fail("SSO 用户信息里没有可用的用户名")
+        return fail("SSO 用户信息里没有可用的用户名（可在系统设置里调整用户名字段）")
 
     # 首次 SSO 登录自动开户（随机密码，密码登录方式对该账号不可用）
     admin = db.query(Admin).filter(Admin.username == username).first()
@@ -146,6 +181,102 @@ def auth_callback(request: Request, code: str = "", state: str = "", db: Session
     return RedirectResponse(
         f"{front_base}sso?token={token}&redirect={urllib.parse.quote(rec['redirect'])}"
     )
+
+
+# ---------- SSO 配置管理（后台「系统设置」页面用） ----------
+
+class SsoSettingsRequest(BaseModel):
+    sso_enabled: bool = False
+    sso_auth_url: str = ""
+    sso_token_url: str = ""
+    sso_userinfo_url: str = ""
+    sso_client_id: str = ""
+    sso_client_secret: str = ""     # 留空 = 保留已保存的密钥
+    sso_scope: str = "openid profile email"
+    sso_username_field: str = ""
+
+
+def _get_settings(db: Session) -> dict:
+    return {s.key: (s.value or "") for s in db.query(Setting).all()}
+
+
+def _set_setting(db: Session, key: str, value: str):
+    row = db.query(Setting).filter(Setting.key == key).first()
+    if row:
+        row.value = value
+    else:
+        db.add(Setting(key=key, value=value))
+
+
+@router.get("/settings/sso")
+def get_sso_settings(db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)):
+    rows = _get_settings(db)
+    return {
+        "sso_enabled": rows.get("sso_enabled") == "1",
+        "sso_auth_url": rows.get("sso_auth_url", ""),
+        "sso_token_url": rows.get("sso_token_url", ""),
+        "sso_userinfo_url": rows.get("sso_userinfo_url", ""),
+        "sso_client_id": rows.get("sso_client_id", ""),
+        "sso_client_secret": "",
+        "sso_has_secret": bool(rows.get("sso_client_secret")),
+        "sso_scope": rows.get("sso_scope", "openid profile email"),
+        "sso_username_field": rows.get("sso_username_field", ""),
+    }
+
+
+@router.put("/settings/sso")
+def put_sso_settings(data: SsoSettingsRequest, db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)):
+    if data.sso_enabled:
+        missing = [name for name, v in (
+            ("授权地址", data.sso_auth_url), ("Token 地址", data.sso_token_url), ("客户端 ID", data.sso_client_id)
+        ) if not v.strip()]
+        if missing:
+            raise HTTPException(status_code=400, detail=f"启用 SSO 需要填写：{'、'.join(missing)}")
+
+    values = {
+        "sso_enabled": "1" if data.sso_enabled else "0",
+        "sso_auth_url": data.sso_auth_url.strip(),
+        "sso_token_url": data.sso_token_url.strip(),
+        "sso_userinfo_url": data.sso_userinfo_url.strip(),
+        "sso_client_id": data.sso_client_id.strip(),
+        "sso_scope": data.sso_scope.strip() or "openid profile email",
+        "sso_username_field": data.sso_username_field.strip(),
+    }
+    for k, v in values.items():
+        _set_setting(db, k, v)
+    # 密钥：只在填了新值时更新（避免回显/留空清掉）
+    if data.sso_client_secret.strip():
+        _set_setting(db, "sso_client_secret", data.sso_client_secret.strip())
+    db.commit()
+    return {"status": "ok", "message": "SSO 配置已保存，立即生效（无需重启服务）"}
+
+
+@router.post("/settings/sso/test")
+def test_sso_settings(db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)):
+    """逐个探测端点连通性（不发起真实登录）。"""
+    import urllib.error
+    oauth = get_oauth(db)
+    if not oauth:
+        return {"ok": False, "message": "SSO 未启用或配置不完整（已启用时需填授权地址/Token地址/客户端ID）"}
+
+    results = {}
+    for name in ("auth_url", "token_url", "userinfo_url"):
+        url = oauth.get(name)
+        if not url:
+            results[name] = {"status": "未配置"}
+            continue
+        try:
+            req = urllib.request.Request(url, headers={"Accept": "application/json"})
+            urllib.request.urlopen(req, timeout=5)
+            results[name] = {"status": "OK"}
+        except urllib.error.HTTPError as e:
+            # 端点存在但对空请求返回 4xx/5xx 属正常（如 405 不允许 GET）
+            results[name] = {"status": f"可达（HTTP {e.code}）"}
+        except Exception as e:
+            results[name] = {"status": f"不可达：{str(e)[:80]}"}
+
+    ok = all("不可达" not in r["status"] for r in results.values())
+    return {"ok": ok, "results": results, "message": "全部端点可达" if ok else "存在不可达端点，请检查地址"}
 
 
 # ==================== 账号密码登录 ====================

@@ -15,6 +15,14 @@ class Admin(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
+class Setting(Base):
+    """键值配置（SSO 等后台页面可编辑的设置项）"""
+    __tablename__ = "settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(String(1024), default="")
+
+
 class Employee(Base):
     __tablename__ = "employees"
 

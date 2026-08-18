@@ -104,6 +104,8 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=$APP_DIR
+# SSO 等可选配置文件（存在则加载，不存在忽略）；后台「系统设置」页面的配置优先生效
+EnvironmentFile=-/opt/ip-tracker/app.env
 ExecStart=$APP_DIR/venv/bin/python $MAIN_PY
 Restart=always
 RestartSec=5

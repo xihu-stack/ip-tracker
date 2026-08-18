@@ -8,6 +8,7 @@ const routes = [
   { path: '/employees', name: 'Employees', component: () => import('../views/Employees.vue') },
   { path: '/history', name: 'History', component: () => import('../views/History.vue') },
   { path: '/guide', name: 'Guide', component: () => import('../views/Guide.vue') },
+  { path: '/settings', name: 'Settings', component: () => import('../views/Settings.vue') },
 ]
 
 const router = createRouter({
@@ -20,7 +21,8 @@ router.beforeEach((to, from, next) => {
   if (to.meta.public) {
     next(token && to.path === '/login' ? '/' : undefined)
   } else {
-    next(token ? undefined : '/login')
+    // 记住原路径，登录（密码或 SSO）后回到这里
+    next(token ? undefined : { path: '/login', query: { redirect: to.fullPath } })
   }
 })
 

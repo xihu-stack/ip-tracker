@@ -135,7 +135,8 @@ async function handleLogin() {
     const res = await login(form.value)
     localStorage.setItem('token', res.data.access_token)
     ElMessage.success('登录成功')
-    router.push('/')
+    const target = String(route.query.redirect || '/')
+    router.push(target.startsWith('/') && !target.startsWith('//') ? target : '/')
   } catch {
   } finally {
     loading.value = false
