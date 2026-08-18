@@ -34,6 +34,10 @@
         </el-menu-item>
       </el-menu>
       <div class="sidebar-footer">
+        <div class="current-user">
+          <el-icon><UserFilled /></el-icon>
+          <span>{{ currentUser || '未知用户' }}</span>
+        </div>
         <div class="footer-btn" @click="showChangePassword = true">
           <el-icon><Key /></el-icon>
           <span>修改密码</span>
@@ -89,11 +93,29 @@ const currentPath = computed(() => route.path)
 const showSidebar = computed(() => !route.meta.public)
 
 const appVersion = ref('')
+const appSSOLogoutUrl = ref('')
+
+// 从 JWT 解出当前登录用户名（sub = 管理员账号或 SSO 域账号）
+// localStorage 非响应式，依赖路由变化触发重算（登录/回跳后立即刷新）
+const currentUser = computed(() => {
+  void route.fullPath
+  try {
+    const token = localStorage.getItem('token') || ''
+    const payload = token.split('.')[1]
+    if (!payload) return ''
+    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const decoded = JSON.parse(atob(b64 + '='.repeat((4 - b64.length % 4) % 4)))
+    return decoded.sub || ''
+  } catch {
+    return ''
+  }
+})
+
 onMounted(async () => {
   try {
-    const res = await fetch('/api/version')
-    const data = await res.json()
-    appVersion.value = data.version || ''
+    const [verRes, cfgRes] = await Promise.all([fetch('/api/version'), fetch('/api/auth/config')])
+    appVersion.value = (await verRes.json()).version || ''
+    appSSOLogoutUrl.value = (await cfgRes.json()).logout_url || ''
   } catch {}
 })
 
@@ -103,7 +125,16 @@ function passwordOk(p) {
 
 function handleLogout() {
   localStorage.removeItem('token')
-  router.push('/login')
+  const logoutUrl = appSSOLogoutUrl.value
+  if (logoutUrl) {
+    // 全局登出：跳统一门户的 end_session 端点，门户会话一并失效后回到登录页，
+    // 避免退出后因门户会话仍有效而被自动重新登录
+    const sep = logoutUrl.includes('?') ? '&' : '?'
+    window.location.href = logoutUrl + sep + 'post_logout_redirect_uri=' +
+      encodeURIComponent(window.location.origin + '/login')
+  } else {
+    router.push('/login')
+  }
 }
 
 const showChangePassword = ref(false)
@@ -270,6 +301,24 @@ body {
 }
 .footer-btn:hover { color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.06); }
 .logout-btn:hover { color: var(--danger); background: rgba(220,38,38,0.1); }
+.current-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  margin-bottom: 6px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.85);
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+}
+.current-user span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .footer-version {
   margin-top: 4px;
   padding: 0 14px;

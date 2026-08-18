@@ -63,6 +63,7 @@ def _load_env_oauth():
         "userinfo_url": os.getenv("OAUTH_USERINFO_URL", "").strip(),
         "scope": os.getenv("OAUTH_SCOPE", "openid profile email"),
         "redirect_uri": os.getenv("OAUTH_REDIRECT_URI", "").strip(),
+        "logout_url": os.getenv("OAUTH_LOGOUT_URL", "").strip(),
         "username_field": "",
     }
     if not (conf["client_id"] and conf["auth_url"] and conf["token_url"]):
@@ -88,6 +89,7 @@ def get_oauth(db: Session):
             "userinfo_url": rows.get("sso_userinfo_url", ""),
             "scope": rows.get("sso_scope") or "openid profile email",
             "redirect_uri": "",
+            "logout_url": rows.get("sso_logout_url", ""),
             "username_field": rows.get("sso_username_field", ""),
         }
         if conf["client_id"] and conf["auth_url"] and conf["token_url"]:
@@ -122,8 +124,12 @@ def _clean_states():
 
 @router.get("/auth/config")
 def auth_config(db: Session = Depends(get_db)):
-    """登录页据此决定是否展示/自动跳转 SSO。"""
-    return {"sso_enabled": bool(get_oauth(db))}
+    """登录页据此决定是否展示/自动跳转 SSO；logout_url 供退出时做全局登出。"""
+    oauth = get_oauth(db)
+    return {
+        "sso_enabled": bool(oauth),
+        "logout_url": (oauth or {}).get("logout_url", ""),
+    }
 
 
 @router.get("/auth/sso-login")
@@ -222,6 +228,7 @@ class SsoSettingsRequest(BaseModel):
     sso_client_secret: str = ""     # 留空 = 保留已保存的密钥
     sso_scope: str = "openid profile email"
     sso_username_field: str = ""
+    sso_logout_url: str = ""    # 全局登出端点（OIDC end_session_endpoint），配置后"退出登录"会同时登出统一门户
     sso_allowed_users: str = ""     # 用户名白名单，逗号/换行分隔
     sso_allowed_domains: str = ""   # 邮箱后缀白名单，逗号分隔
 
@@ -251,6 +258,7 @@ def get_sso_settings(db: Session = Depends(get_db), _: Admin = Depends(get_curre
         "sso_has_secret": bool(rows.get("sso_client_secret")),
         "sso_scope": rows.get("sso_scope", "openid profile email"),
         "sso_username_field": rows.get("sso_username_field", ""),
+        "sso_logout_url": rows.get("sso_logout_url", ""),
         "sso_allowed_users": rows.get("sso_allowed_users", ""),
         "sso_allowed_domains": rows.get("sso_allowed_domains", ""),
         # SSO 由服务器环境变量启用（页面尚未保存过配置）——此时保存会覆盖环境变量
@@ -275,6 +283,7 @@ def put_sso_settings(data: SsoSettingsRequest, db: Session = Depends(get_db), _:
         "sso_client_id": data.sso_client_id.strip(),
         "sso_scope": data.sso_scope.strip() or "openid profile email",
         "sso_username_field": data.sso_username_field.strip(),
+        "sso_logout_url": data.sso_logout_url.strip(),
         "sso_allowed_users": data.sso_allowed_users.strip(),
         "sso_allowed_domains": data.sso_allowed_domains.strip(),
     }

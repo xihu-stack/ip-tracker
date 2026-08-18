@@ -69,6 +69,11 @@
           <div class="field-hint">自建 SSO 返回的用户信息里用户名字段各不相同，登录报"没有可用的用户名"时在此指定</div>
         </el-form-item>
 
+        <el-form-item label="全局登出地址">
+          <el-input v-model="form.sso_logout_url" placeholder="http://10.4.128.19:8080/connect/logout" />
+          <div class="field-hint">认证中心的 OIDC 登出端点（end_session_endpoint）。配置后本系统"退出登录"会同时登出统一门户，避免退出后被门户会话自动重新登录；留空则退出仅清除本系统会话</div>
+        </el-form-item>
+
         <el-divider content-position="left">SSO 访问白名单（第二层控制）</el-divider>
         <el-alert type="warning" :closable="false" class="mb16" show-icon>
           <template #title>
@@ -133,6 +138,7 @@ const form = ref({
   sso_client_secret: '',
   sso_scope: 'openid profile email',
   sso_username_field: '',
+  sso_logout_url: '',
   sso_allowed_users: '',
   sso_allowed_domains: '',
 })

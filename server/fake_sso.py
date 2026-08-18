@@ -26,6 +26,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(302)
             self.send_header("Location", back)
             self.end_headers()
+        elif self.path.startswith("/connect/logout") or self.path.startswith("/logout"):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            back = q.get("post_logout_redirect_uri", ["http://127.0.0.1:8000/login"])[0]
+            self.send_response(302)
+            self.send_header("Location", back)
+            self.end_headers()
         elif self.path.startswith("/userinfo"):
             self._send_json('{"access_token":"x","preferred_username":"sso_tester","email":"tester@example.com","name":"SSO测试用户"}')
         else:
