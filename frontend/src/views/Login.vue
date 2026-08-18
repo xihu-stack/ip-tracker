@@ -30,25 +30,22 @@
     <div class="form-panel">
       <div class="grid-bg"></div>
 
-      <!-- SSO 模式：自动跳转统一门户 -->
+      <!-- SSO 模式：直接跳转统一门户（密码入口在独立路径 /admin-login） -->
       <div class="login-card" v-if="ssoEnabled && !showPwdForm">
         <div class="login-header">
           <h2>统一门户登录</h2>
-          <p>{{ countdown > 0 ? `${countdown} 秒后自动跳转到统一门户…` : '正在跳转到统一门户…' }}</p>
+          <p>{{ countdown > 0 ? `即将跳转到统一门户…` : '正在跳转到统一门户…' }}</p>
         </div>
         <el-button size="large" class="login-btn" @click="goSso">
           前往统一门户登录
         </el-button>
-        <div class="login-tip">
-          <a class="pwd-link" @click.prevent="usePassword">改用账号密码登录</a>
-        </div>
       </div>
 
-      <!-- 账号密码模式 -->
+      <!-- 账号密码模式（/admin-login 管理员入口） -->
       <div class="login-card" v-else>
         <div class="login-header">
-          <h2>欢迎登录</h2>
-          <p>请输入管理员账号</p>
+          <h2>{{ isAdminEntry ? '管理员登录' : '欢迎登录' }}</h2>
+          <p>{{ isAdminEntry ? '请输入管理员账号（仅管理员使用）' : '请输入管理员账号' }}</p>
         </div>
         <el-form :model="form" @submit.prevent="handleLogin" class="login-form">
           <div class="input-group">
@@ -74,7 +71,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { login } from '../api'
@@ -84,11 +81,13 @@ const route = useRoute()
 const loading = ref(false)
 const form = ref({ username: '', password: '' })
 
-// SSO：启用时自动跳统一门户，保留账号密码应急入口（/login?pwd=1 直接进密码表单）
+// SSO：启用时普通 /login 直接跳统一门户；管理员密码入口固定在 /admin-login
 const ssoEnabled = ref(false)
 const showPwdForm = ref(false)
-const countdown = ref(3)
+const countdown = ref(1)
 let ssoTimer = null
+
+const isAdminEntry = computed(() => route.path === '/admin-login')
 
 function goSso() {
   if (ssoTimer) { clearInterval(ssoTimer); ssoTimer = null }
@@ -97,13 +96,9 @@ function goSso() {
   window.location.href = '/api/auth/sso-login?redirect=' + encodeURIComponent(safe)
 }
 
-function usePassword() {
-  if (ssoTimer) { clearInterval(ssoTimer); ssoTimer = null }
-  showPwdForm.value = true
-}
-
 onMounted(async () => {
-  if (route.query.pwd === '1') showPwdForm.value = true
+  // 管理员入口（/admin-login）始终展示密码表单
+  showPwdForm.value = isAdminEntry.value || route.query.pwd === '1'
   try {
     const res = await fetch('/api/auth/config')
     const data = await res.json()
@@ -117,7 +112,7 @@ onMounted(async () => {
         ssoTimer = null
         goSso()
       }
-    }, 1000)
+    }, 900)
   }
 })
 
