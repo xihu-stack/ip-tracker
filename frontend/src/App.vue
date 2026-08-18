@@ -38,7 +38,7 @@
           <el-icon><UserFilled /></el-icon>
           <span>{{ currentUser || '未知用户' }}</span>
         </div>
-        <div class="footer-btn" @click="showChangePassword = true">
+        <div class="footer-btn" v-if="!isSsoLogin" @click="showChangePassword = true">
           <el-icon><Key /></el-icon>
           <span>修改密码</span>
         </div>
@@ -97,18 +97,25 @@ const appSSOLogoutUrl = ref('')
 
 // 从 JWT 解出当前登录用户名（sub = 管理员账号或 SSO 域账号）
 // localStorage 非响应式，依赖路由变化触发重算（登录/回跳后立即刷新）
-const currentUser = computed(() => {
+const tokenInfo = computed(() => {
   void route.fullPath
   try {
     const token = localStorage.getItem('token') || ''
     const payload = token.split('.')[1]
-    if (!payload) return ''
+    if (!payload) return { sub: '', login: '' }
     const b64 = payload.replace(/-/g, '+').replace(/_/g, '/')
     const decoded = JSON.parse(atob(b64 + '='.repeat((4 - b64.length % 4) % 4)))
-    return decoded.sub || ''
+    return { sub: decoded.sub || '', login: decoded.login || '' }
   } catch {
-    return ''
+    return { sub: '', login: '' }
   }
+})
+const currentUser = computed(() => tokenInfo.value.sub)
+// SSO 登录的账号没有本地密码，不提供修改密码入口
+const isSsoLogin = computed(() => {
+  if (tokenInfo.value.login) return tokenInfo.value.login === 'sso'
+  // 旧令牌无 login 字段时按是否持有门户令牌推断
+  return !!localStorage.getItem('sso_id_token')
 })
 
 onMounted(async () => {
@@ -128,10 +135,11 @@ function handleLogout() {
   localStorage.removeItem('token')
   localStorage.removeItem('sso_id_token')
   if (appSSOLogoutUrl.value && idToken) {
-    // SSO 登录的会话：带 id_token_hint 跳门户全局登出（门户校验通过才真正清除全局会话）
+    // SSO 登录的会话：带 id_token_hint 跳门户全局登出。
+    // 不带 post_logout_redirect_uri——门户通常要求该地址预先登记（未登记会 400），
+    // 让门户显示自己的登出确认页即可，会话清除后用户再访问本系统会要求重新登录
     const params = new URLSearchParams()
     params.set('id_token_hint', idToken)
-    params.set('post_logout_redirect_uri', window.location.origin + '/login?stay=1')
     window.location.href = appSSOLogoutUrl.value + (appSSOLogoutUrl.value.includes('?') ? '&' : '?') + params.toString()
   } else {
     // 账号密码登录（无门户令牌）：仅清除本系统会话，回登录停留页

@@ -131,6 +131,8 @@ async function handleLogin() {
   loading.value = true
   try {
     const res = await login(form.value)
+    // 密码登录会话与门户无关，清掉可能残留的 SSO 令牌，避免退出时误走门户登出
+    localStorage.removeItem('sso_id_token')
     localStorage.setItem('token', res.data.access_token)
     ElMessage.success('登录成功')
     const target = String(route.query.redirect || '/')
