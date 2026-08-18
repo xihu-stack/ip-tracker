@@ -124,16 +124,19 @@ function passwordOk(p) {
 }
 
 function handleLogout() {
+  // 全局登出：带 id_token_hint（门户校验后才会真正清除全局会话），
+  // 回跳到 /login?stay=1 —— 登录页停留模式，不自动跳 SSO，杜绝"退出后秒登"
+  const idToken = localStorage.getItem('sso_id_token') || ''
   localStorage.removeItem('token')
+  localStorage.removeItem('sso_id_token')
   const logoutUrl = appSSOLogoutUrl.value
   if (logoutUrl) {
-    // 全局登出：跳统一门户的 end_session 端点，门户会话一并失效后回到登录页，
-    // 避免退出后因门户会话仍有效而被自动重新登录
-    const sep = logoutUrl.includes('?') ? '&' : '?'
-    window.location.href = logoutUrl + sep + 'post_logout_redirect_uri=' +
-      encodeURIComponent(window.location.origin + '/login')
+    const params = new URLSearchParams()
+    if (idToken) params.set('id_token_hint', idToken)
+    params.set('post_logout_redirect_uri', window.location.origin + '/login?stay=1')
+    window.location.href = logoutUrl + (logoutUrl.includes('?') ? '&' : '?') + params.toString()
   } else {
-    router.push('/login')
+    router.push('/login?stay=1')
   }
 }
 

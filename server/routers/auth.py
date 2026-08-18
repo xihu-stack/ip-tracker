@@ -212,8 +212,11 @@ def auth_callback(request: Request, code: str = "", state: str = "", db: Session
         print(f"[oauth] SSO 用户首次登录，已自动创建管理员账号: {username}")
 
     token = create_access_token(data={"sub": username})
+    # 透传 OIDC id_token：前端保存，退出时作为 id_token_hint 让门户正确清除全局会话
+    id_token = token_json.get("id_token", "")
+    extra = f"&id_token={urllib.parse.quote(id_token)}" if id_token else ""
     return RedirectResponse(
-        f"{front_base}sso?token={token}&redirect={urllib.parse.quote(rec['redirect'])}"
+        f"{front_base}sso?token={token}&redirect={urllib.parse.quote(rec['redirect'])}{extra}"
     )
 
 

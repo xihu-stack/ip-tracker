@@ -40,7 +40,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if self.path.startswith("/token"):
-            self._send_json('{"access_token":"fake-token","token_type":"bearer"}')
+            # 含 id_token，模拟 OIDC 流程（退出时作为 id_token_hint 用）
+            fake_id_token = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJzc29fdGVzdGVyIiwiaXNzIjoiZmFrZSJ9.fake-signature"
+            self._send_json('{"access_token":"fake-token","token_type":"bearer","id_token":"' + fake_id_token + '"}')
         else:
             self.send_response(404)
             self.end_headers()

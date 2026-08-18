@@ -33,8 +33,9 @@
       <!-- SSO 模式：直接跳转统一门户（密码入口在独立路径 /admin-login） -->
       <div class="login-card" v-if="ssoEnabled && !showPwdForm">
         <div class="login-header">
-          <h2>统一门户登录</h2>
-          <p>{{ countdown > 0 ? `即将跳转到统一门户…` : '正在跳转到统一门户…' }}</p>
+          <h2>{{ isStay ? '已退出登录' : '统一门户登录' }}</h2>
+          <p v-if="isStay">如需重新进入，请点击下方按钮（将跳转统一门户）</p>
+          <p v-else>{{ countdown > 0 ? `即将跳转到统一门户…` : '正在跳转到统一门户…' }}</p>
         </div>
         <el-button size="large" class="login-btn" @click="goSso">
           前往统一门户登录
@@ -88,6 +89,8 @@ const countdown = ref(1)
 let ssoTimer = null
 
 const isAdminEntry = computed(() => route.path === '/admin-login')
+// stay=1：刚退出登录的停留模式，不自动跳 SSO（防止门户会话未清时"秒登"）
+const isStay = computed(() => route.query.stay === '1')
 
 function goSso() {
   if (ssoTimer) { clearInterval(ssoTimer); ssoTimer = null }
@@ -104,7 +107,7 @@ onMounted(async () => {
     const data = await res.json()
     ssoEnabled.value = !!data.sso_enabled
   } catch {}
-  if (ssoEnabled.value && !showPwdForm.value) {
+  if (ssoEnabled.value && !showPwdForm.value && !isStay.value) {
     ssoTimer = setInterval(() => {
       countdown.value -= 1
       if (countdown.value <= 0) {
