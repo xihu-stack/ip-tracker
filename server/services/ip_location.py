@@ -22,6 +22,15 @@ _NOISE_TOKENS = {
 }
 
 
+def _decode_body(raw: bytes) -> str:
+    """数据源编码不固定（cip.cc/pconline 有时返回 GBK 中文），先严格按 UTF-8 解，
+    失败则按 GB18030（GBK 超集）解，避免中文城市被拼成乱码碎片（如 'Ϻ'/'㽭ʡ'）。"""
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("gb18030", errors="ignore")
+
+
 def _query_cip_cc(ip: str):
     """数据源 1：cip.cc，文本格式，免 key。返回 (province, city) 或 None。
 
@@ -33,7 +42,7 @@ def _query_cip_cc(ip: str):
         url = f"http://cip.cc/{ip}"
         req = urllib.request.Request(url, headers={"User-Agent": "curl/8.4.0"})
         with urllib.request.urlopen(req, timeout=5) as resp:
-            text = resp.read().decode("utf-8", errors="ignore")
+            text = _decode_body(resp.read())
     except Exception:
         # 网络错误 / 503 限流 / 超时等：交由后续数据源兜底
         return None
@@ -76,7 +85,7 @@ def _query_pconline(ip: str):
         url = f"https://whois.pconline.com.cn/ipJson.jsp?ip={ip}&json=true"
         req = urllib.request.Request(url, headers={"User-Agent": "IPTracker/1.0"})
         with urllib.request.urlopen(req, timeout=5) as resp:
-            text = resp.read().decode("utf-8", errors="ignore")
+            text = _decode_body(resp.read())
         data = json.loads(text)
         if data.get("err"):
             return None
