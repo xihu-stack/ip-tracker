@@ -64,6 +64,23 @@
           <div class="field-hint">自建 SSO 返回的用户信息里用户名字段各不相同，登录报"没有可用的用户名"时在此指定</div>
         </el-form-item>
 
+        <el-divider content-position="left">SSO 访问白名单（第二层控制）</el-divider>
+        <el-alert type="warning" :closable="false" class="mb16" show-icon>
+          <template #title>
+            两个名单都留空 = 不限制（所有能通过企业 SSO 认证的人都能登录本系统）。
+            建议至少配置其一；命中任一名单即允许登录。
+          </template>
+          第一层控制在企业 SSO 侧（把本应用的授权范围限制到指定用户/组），此处为本系统的兜底闸门。
+        </el-alert>
+        <el-form-item label="允许的用户名">
+          <el-input v-model="form.sso_allowed_users" type="textarea" :rows="3"
+            placeholder="zhangsan, lisi, wangwu（逗号或换行分隔，不区分大小写）" />
+        </el-form-item>
+        <el-form-item label="允许的邮箱后缀">
+          <el-input v-model="form.sso_allowed_domains"
+            placeholder="@huashen.bio, @subs.huashen.bio（逗号分隔，匹配以该后缀结尾的邮箱账号）" />
+        </el-form-item>
+
         <el-form-item>
           <el-button type="primary" :loading="saving" @click="save">保存配置</el-button>
           <el-button :loading="testing" @click="testConn">测试连接</el-button>
@@ -94,6 +111,8 @@ const form = ref({
   sso_client_secret: '',
   sso_scope: 'openid profile email',
   sso_username_field: '',
+  sso_allowed_users: '',
+  sso_allowed_domains: '',
 })
 const hasSecret = ref(false)
 const saving = ref(false)

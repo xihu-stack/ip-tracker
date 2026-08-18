@@ -28,7 +28,28 @@ router = APIRouter(prefix="/api", tags=["auth"])
 SSO_SETTING_KEYS = (
     "sso_enabled", "sso_auth_url", "sso_token_url", "sso_userinfo_url",
     "sso_client_id", "sso_client_secret", "sso_scope", "sso_username_field",
+    "sso_allowed_users", "sso_allowed_domains",
 )
+
+
+def _split_list(value: str):
+    return [v.strip().lower() for v in re.split(r"[,;\n]+", value or "") if v.strip()]
+
+
+def _sso_access_denied(rows: dict, username: str) -> str:
+    """SSO 访问白名单：两个名单都为空 = 不限制；否则必须命中其一。
+    用户名精确匹配（不区分大小写），域名匹配邮箱后缀（如 @huashen.bio）。"""
+    allowed_users = _split_list(rows.get("sso_allowed_users", ""))
+    allowed_domains = [d.lstrip("@").lower() for d in _split_list(rows.get("sso_allowed_domains", ""))]
+    if not allowed_users and not allowed_domains:
+        return ""
+    name = username.lower()
+    if name in allowed_users:
+        return ""
+    for d in allowed_domains:
+        if name.endswith("@" + d):
+            return ""
+    return "该账号不在 SSO 访问白名单内，无权访问本系统（请联系管理员调整系统设置）"
 
 
 def _load_env_oauth():
@@ -169,6 +190,13 @@ def auth_callback(request: Request, code: str = "", state: str = "", db: Session
     if not username:
         return fail("SSO 用户信息里没有可用的用户名（可在系统设置里调整用户名字段）")
 
+    # 访问白名单（未配置 = 不限制）；拒绝时不自动开户
+    rows = _get_settings(db)
+    denied = _sso_access_denied(rows, username)
+    if denied:
+        print(f"[oauth] SSO 用户被白名单拒绝: {username}")
+        return fail(denied)
+
     # 首次 SSO 登录自动开户（随机密码，密码登录方式对该账号不可用）
     admin = db.query(Admin).filter(Admin.username == username).first()
     if not admin:
@@ -194,6 +222,8 @@ class SsoSettingsRequest(BaseModel):
     sso_client_secret: str = ""     # 留空 = 保留已保存的密钥
     sso_scope: str = "openid profile email"
     sso_username_field: str = ""
+    sso_allowed_users: str = ""     # 用户名白名单，逗号/换行分隔
+    sso_allowed_domains: str = ""   # 邮箱后缀白名单，逗号分隔
 
 
 def _get_settings(db: Session) -> dict:
@@ -221,6 +251,8 @@ def get_sso_settings(db: Session = Depends(get_db), _: Admin = Depends(get_curre
         "sso_has_secret": bool(rows.get("sso_client_secret")),
         "sso_scope": rows.get("sso_scope", "openid profile email"),
         "sso_username_field": rows.get("sso_username_field", ""),
+        "sso_allowed_users": rows.get("sso_allowed_users", ""),
+        "sso_allowed_domains": rows.get("sso_allowed_domains", ""),
     }
 
 
@@ -241,6 +273,8 @@ def put_sso_settings(data: SsoSettingsRequest, db: Session = Depends(get_db), _:
         "sso_client_id": data.sso_client_id.strip(),
         "sso_scope": data.sso_scope.strip() or "openid profile email",
         "sso_username_field": data.sso_username_field.strip(),
+        "sso_allowed_users": data.sso_allowed_users.strip(),
+        "sso_allowed_domains": data.sso_allowed_domains.strip(),
     }
     for k, v in values.items():
         _set_setting(db, k, v)
