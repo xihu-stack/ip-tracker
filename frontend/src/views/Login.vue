@@ -89,11 +89,13 @@ const countdown = ref(1)
 let ssoTimer = null
 
 const isAdminEntry = computed(() => route.path === '/admin-login')
-// stay=1：刚退出登录的停留模式，不自动跳 SSO（防止门户会话未清时"秒登"）
-const isStay = computed(() => route.query.stay === '1')
+// 停留模式：stay=1（刚退出）或全局"已明确退出"标记——不自动跳 SSO，杜绝循环登录
+const isStay = computed(() => route.query.stay === '1' || localStorage.getItem('logged_out') === '1')
 
 function goSso() {
   if (ssoTimer) { clearInterval(ssoTimer); ssoTimer = null }
+  // 用户主动要求登录，清除"已退出"标记
+  localStorage.removeItem('logged_out')
   const target = String(route.query.redirect || '/')
   const safe = target.startsWith('/') && !target.startsWith('//') ? target : '/'
   window.location.href = '/api/auth/sso-login?redirect=' + encodeURIComponent(safe)
@@ -131,8 +133,9 @@ async function handleLogin() {
   loading.value = true
   try {
     const res = await login(form.value)
-    // 密码登录会话与门户无关，清掉可能残留的 SSO 令牌，避免退出时误走门户登出
+    // 密码登录会话与门户无关，清掉可能残留的 SSO 令牌和退出标记
     localStorage.removeItem('sso_id_token')
+    localStorage.removeItem('logged_out')
     localStorage.setItem('token', res.data.access_token)
     ElMessage.success('登录成功')
     const target = String(route.query.redirect || '/')

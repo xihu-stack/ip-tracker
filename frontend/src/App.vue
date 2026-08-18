@@ -132,17 +132,17 @@ function passwordOk(p) {
 
 function handleLogout() {
   const idToken = localStorage.getItem('sso_id_token') || ''
+  // 记住"已明确退出"：登录页不再自动跳 SSO，直到用户主动点重新登录。
+  // 这是防循环登录的兜底——即使门户全局会话没被清掉，本系统也不会再自动带用户登录
+  localStorage.setItem('logged_out', '1')
   localStorage.removeItem('token')
   localStorage.removeItem('sso_id_token')
   if (appSSOLogoutUrl.value && idToken) {
-    // SSO 登录的会话：带 id_token_hint 跳门户全局登出。
-    // 不带 post_logout_redirect_uri——门户通常要求该地址预先登记（未登记会 400），
-    // 让门户显示自己的登出确认页即可，会话清除后用户再访问本系统会要求重新登录
+    // SSO 登录的会话：带 id_token_hint 跳门户全局登出（尽力而为，失败也不影响上面的兜底）
     const params = new URLSearchParams()
     params.set('id_token_hint', idToken)
     window.location.href = appSSOLogoutUrl.value + (appSSOLogoutUrl.value.includes('?') ? '&' : '?') + params.toString()
   } else {
-    // 账号密码登录（无门户令牌）：仅清除本系统会话，回登录停留页
     router.push('/login?stay=1')
   }
 }

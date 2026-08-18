@@ -27,6 +27,7 @@ onMounted(() => {
   }
   if (token) {
     localStorage.setItem('token', String(token))
+    localStorage.removeItem('logged_out')
     // 保存门户颁发的 id_token，退出登录时作为 id_token_hint 传给全局登出端点
     if (route.query.id_token) {
       localStorage.setItem('sso_id_token', String(route.query.id_token))
