@@ -253,6 +253,8 @@ def get_sso_settings(db: Session = Depends(get_db), _: Admin = Depends(get_curre
         "sso_username_field": rows.get("sso_username_field", ""),
         "sso_allowed_users": rows.get("sso_allowed_users", ""),
         "sso_allowed_domains": rows.get("sso_allowed_domains", ""),
+        # SSO 由服务器环境变量启用（页面尚未保存过配置）——此时保存会覆盖环境变量
+        "sso_env_enabled": not rows and _load_env_oauth() is not None,
     }
 
 

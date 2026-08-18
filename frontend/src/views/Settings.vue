@@ -14,6 +14,11 @@
         </div>
       </template>
 
+      <el-alert v-if="envEnabled" type="warning" :closable="false" class="mb16" show-icon>
+        <template #title>SSO 当前由服务器环境变量（app.env）启用</template>
+        在此页面保存任何配置都会改用页面配置并覆盖环境变量。若不想停用 SSO，保存时请保持开关为开启状态。
+      </el-alert>
+
       <el-alert type="info" :closable="false" class="mb16" show-icon>
         <template #title>
           在企业 SSO 侧创建应用时，回调地址（Redirect URI）填写：
@@ -99,7 +104,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '../api'
 
 const form = ref({
@@ -115,6 +120,7 @@ const form = ref({
   sso_allowed_domains: '',
 })
 const hasSecret = ref(false)
+const envEnabled = ref(false)
 const saving = ref(false)
 const testing = ref(false)
 const testResult = ref(null)
@@ -126,10 +132,23 @@ async function load() {
     const res = await api.get('/settings/sso')
     form.value = { ...res.data, sso_client_secret: '' }
     hasSecret.value = !!res.data.sso_has_secret
+    envEnabled.value = !!res.data.sso_env_enabled
   } catch {}
 }
 
 async function save() {
+  // 环境变量启用的 SSO 被本页关闭时，明确确认一次，防止误存导致 SSO 停用
+  if (envEnabled.value && !form.value.sso_enabled) {
+    try {
+      await ElMessageBox.confirm(
+        'SSO 当前由服务器环境变量启用，本次保存将停用 SSO（普通 /login 恢复为密码登录）。确定继续？',
+        '停用 SSO 确认',
+        { type: 'warning', confirmButtonText: '仍要保存', cancelButtonText: '取消' }
+      )
+    } catch {
+      return
+    }
+  }
   saving.value = true
   try {
     const res = await api.put('/settings/sso', form.value)

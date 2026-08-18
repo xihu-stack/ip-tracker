@@ -3,7 +3,7 @@ import time
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import func
+from sqlalchemy import and_, func, text
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -15,17 +15,42 @@ router = APIRouter(prefix="/api", tags=["query"])
 # 失联判定：超过 30 天未上报视为失联（区别于普通离线，多为离职/重装设备）
 STALE_DAYS = 30
 
+# 窗口函数能力探测：SQLite < 3.25（如 CentOS 7 自带 3.7）不支持，需降级查询
+_window_fn_support = None
+
+
+def _window_fn_ok(db: Session) -> bool:
+    global _window_fn_support
+    if _window_fn_support is None:
+        try:
+            db.execute(text("SELECT row_number() OVER (ORDER BY 1) FROM sqlite_master LIMIT 1"))
+            _window_fn_support = True
+        except Exception:
+            _window_fn_support = False
+            print("[db] 当前 SQLite 不支持窗口函数，最新记录查询使用兼容模式（结果一致，稍慢）")
+    return _window_fn_support
+
 
 def _latest_by_employee(db: Session) -> dict:
-    """一条窗口函数 SQL 取出每个员工的最新记录，替代逐个员工查询（N+1）。"""
-    rn = func.row_number().over(
-        partition_by=IpRecord.employee_id,
-        order_by=IpRecord.reported_at.desc()
-    ).label("rn")
-    sub = db.query(
-        IpRecord.employee_id, IpRecord.ip, IpRecord.city, IpRecord.reported_at, rn
-    ).subquery()
-    return {row.employee_id: row for row in db.query(sub).filter(sub.c.rn == 1).all()}
+    """每个员工的最新记录。优先一条窗口函数 SQL；老版本 SQLite 自动降级为
+    max(reported_at) 连接查询（结果一致，稍慢）。"""
+    if _window_fn_ok(db):
+        rn = func.row_number().over(
+            partition_by=IpRecord.employee_id,
+            order_by=IpRecord.reported_at.desc()
+        ).label("rn")
+        sub = db.query(
+            IpRecord.employee_id, IpRecord.ip, IpRecord.city, IpRecord.reported_at, rn
+        ).subquery()
+        return {row.employee_id: row for row in db.query(sub).filter(sub.c.rn == 1).all()}
+
+    mx = db.query(
+        IpRecord.employee_id, func.max(IpRecord.reported_at).label("mx")
+    ).group_by(IpRecord.employee_id).subquery()
+    rows = db.query(IpRecord).join(
+        mx, and_(IpRecord.employee_id == mx.c.employee_id, IpRecord.reported_at == mx.c.mx)
+    ).all()
+    return {r.employee_id: r for r in rows}
 
 
 @router.get("/dashboard")
