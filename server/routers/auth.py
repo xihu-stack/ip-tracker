@@ -315,6 +315,44 @@ def test_sso_settings(db: Session = Depends(get_db), _: Admin = Depends(get_curr
     return {"ok": ok, "results": results, "message": "全部端点可达" if ok else "存在不可达端点，请检查地址"}
 
 
+# ---------- IP 归属地人工映射（系统设置页面用） ----------
+
+class GeoSettingsRequest(BaseModel):
+    ip_city_map: str = ""   # 每行一条：IP 或 CIDR 网段 + 空格 + 城市名
+
+
+@router.get("/settings/geo")
+def get_geo_settings(db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)):
+    rows = _get_settings(db)
+    return {"ip_city_map": rows.get("ip_city_map", "")}
+
+
+@router.put("/settings/geo")
+def put_geo_settings(data: GeoSettingsRequest, db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)):
+    import ipaddress
+    bad = []
+    for line in (data.ip_city_map or "").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split(None, 1)
+        if len(parts) != 2 or not parts[1].strip():
+            bad.append(line)
+            continue
+        try:
+            ipaddress.ip_network(parts[0], strict=False)
+        except ValueError:
+            bad.append(line)
+    if bad:
+        raise HTTPException(
+            status_code=400,
+            detail="以下行格式不正确（应为 IP或网段 + 空格 + 城市名，如 203.0.113.5 上海）：" + "；".join(bad[:3])
+        )
+    _set_setting(db, "ip_city_map", (data.ip_city_map or "").strip())
+    db.commit()
+    return {"status": "ok", "message": "映射已保存，约 30 秒内生效（命中的 IP 不再走在线查询）"}
+
+
 # ==================== 账号密码登录 ====================
 
 # 登录防爆破：同一 IP+用户名 连续失败 5 次锁定 10 分钟（内存计数，重启清零）

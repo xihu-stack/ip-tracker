@@ -99,6 +99,23 @@
         </el-descriptions-item>
       </el-descriptions>
     </el-card>
+
+    <el-card class="mt16">
+      <template #header>
+        <div class="card-title">IP 归属地人工映射（可选）</div>
+      </template>
+      <el-alert type="info" :closable="false" class="mb16" show-icon>
+        <template #title>企业固定出口（办公点专线、VPN 出口）在这里钉住城市：命中的 IP 直接采用映射结果，不再走在线查询，100% 准确。</template>
+        城市名建议与系统格式一致（如"江苏-苏州市"，可从员工列表的当前城市复制）；支持 # 开头注释行。
+      </el-alert>
+      <el-input
+        v-model="geoMap" type="textarea" :rows="6"
+        placeholder="每行一条：IP 或网段 + 空格 + 城市名&#10;203.0.113.5 上海&#10;10.8.0.0/24 江苏-苏州市&#10;# 公司VPN出口"
+      />
+      <div style="margin-top: 12px">
+        <el-button type="primary" :loading="savingGeo" @click="saveGeo">保存映射</el-button>
+      </div>
+    </el-card>
   </div>
 </template>
 
@@ -181,11 +198,32 @@ function copyCallback() {
   ElMessage.success('已复制')
 }
 
+const geoMap = ref('')
+const savingGeo = ref(false)
+
+async function loadGeo() {
+  try {
+    const res = await api.get('/settings/geo')
+    geoMap.value = res.data.ip_city_map || ''
+  } catch {}
+}
+
+async function saveGeo() {
+  savingGeo.value = true
+  try {
+    const res = await api.put('/settings/geo', { ip_city_map: geoMap.value })
+    ElMessage.success(res.data.message || '已保存')
+  } catch {} finally {
+    savingGeo.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
 <style scoped>
 .mb16 { margin-bottom: 16px; }
+.mt16 { margin-top: 16px; }
 .settings-form { max-width: 640px; }
 .callback-url { font-family: Consolas, 'Courier New', monospace; }
 .field-hint { font-size: 12px; color: var(--text-muted); line-height: 1.6; margin-top: 4px; }

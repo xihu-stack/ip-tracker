@@ -1,6 +1,8 @@
+import ipaddress
 import json
 import time
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 try:
     from .city_coords import get_city_coord, _normalize
@@ -77,7 +79,7 @@ def _query_cip_cc(ip: str):
 
 
 def _query_pconline(ip: str):
-    """数据源 2：太平洋 pconline，JSON 格式，免 key。返回 (province, city) 或 None。
+    """数据源 2：太平洋 pconline，JSON 格式，免 key。
 
     返回示例：{"pro":"江苏省","city":"南京市","addr":"江苏省南京市 电信","err":""}
     """
@@ -100,33 +102,146 @@ def _query_pconline(ip: str):
         return None
 
 
-# 数据源顺序：前面的优先。要加更多源，往这里加一个函数即可。
-_SOURCES = (_query_cip_cc, _query_pconline)
+def _query_ip_api_com(ip: str):
+    """数据源 3：ip-api.com，JSON 格式，免 key（免费 HTTP 接口限 45 次/分钟，
+    有 1 小时结果缓存 + 并发查询，实际压力远低于限额）。"""
+    try:
+        url = f"http://ip-api.com/json/{ip}?lang=zh-CN&fields=status,regionName,city"
+        req = urllib.request.Request(url, headers={"User-Agent": "IPTracker/1.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(_decode_body(resp.read()))
+        if data.get("status") != "success":
+            return None
+        province = _normalize(data.get("regionName") or "")
+        city = _normalize(data.get("city") or "")
+        if not province and not city:
+            return None
+        if not city:
+            city = province
+        return province, city
+    except Exception:
+        return None
+
+
+# 数据源（名称, 函数）。要加更多源，往这里加一项即可。
+_SOURCES = (
+    ("cip.cc", _query_cip_cc),
+    ("pconline", _query_pconline),
+    ("ip-api", _query_ip_api_com),
+)
+
+# 三源并发查询，避免串行等待（单源超时 5s，并发后总耗时不超过 5s）
+_query_pool = ThreadPoolExecutor(max_workers=3)
+
+
+def _query_all(ip: str):
+    futures = [(name, _query_pool.submit(fn, ip)) for name, fn in _SOURCES]
+    out = []
+    for name, fut in futures:
+        try:
+            out.append((name, fut.result(timeout=6)))
+        except Exception:
+            out.append((name, None))
+    return out
 
 
 def _resolve(ip: str):
-    """依次尝试多个数据源：优先采用能给出**城市**的；都没有城市就退而用省级。
-
-    这样 cip.cc 只给省级/只给运营商时，会继续问 pconline，尽量拿到城市。
+    """三源并发 + 交叉校验：
+    - 至少两个源给出相同城市 → 采纳共识（减少单个 IP 库登记错误）
+    - 无共识 → 按源优先级（cip.cc > pconline > ip-api）取第一个给出城市的
+    - 都只给省级 → 取优先级最高的省级结果兜底
     """
+    valid = []
     fallback = None
-    for fn in _SOURCES:
-        try:
-            geo = fn(ip)
-        except Exception:
-            geo = None
+    for name, geo in _query_all(ip):
         if not geo:
             continue
         province, city = geo
         if city and city != province:
-            return province, city          # 命中城市，立即采用
-        if fallback is None:
-            fallback = (province, city)    # 记下"只有省级"的兜底
+            valid.append((name, province, city))
+        elif fallback is None and city:
+            fallback = (province, city)
+
+    if valid:
+        counts = {}
+        for _, _, c in valid:
+            counts[c] = counts.get(c, 0) + 1
+        best = max(counts, key=counts.get)
+        if counts[best] >= 2:
+            for _, p, c in valid:
+                if c == best and p != c:
+                    return p, c
+        for want, _ in _SOURCES:            # 按源优先级
+            for name, p, c in valid:
+                if name == want:
+                    return p, c
+        return valid[0][1], valid[0][2]
     return fallback
 
 
+# ---------- 人工映射（企业固定出口 IP 钉住城市，100% 准确） ----------
+
+_override_cache = {"ts": 0.0, "nets": None}
+_OVERRIDE_TTL = 30   # 映射表 30 秒重读一次，改完设置很快生效
+
+
+def _load_overrides():
+    """从 settings 表读 ip_city_map（每行一条：IP或CIDR网段 + 空格 + 城市名）。"""
+    now = time.time()
+    if _override_cache["nets"] is not None and now - _override_cache["ts"] < _OVERRIDE_TTL:
+        return _override_cache["nets"]
+    nets = []
+    try:
+        from database import SessionLocal
+        from models import Setting
+        db = SessionLocal()
+        try:
+            row = db.query(Setting).filter(Setting.key == "ip_city_map").first()
+            raw = (row.value or "") if row else ""
+        finally:
+            db.close()
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or " " not in line:
+                continue
+            cidr, _, city = line.partition(" ")
+            try:
+                nets.append((ipaddress.ip_network(cidr.strip(), strict=False), city.strip()))
+            except ValueError:
+                continue
+    except Exception:
+        nets = []
+    _override_cache.update(ts=now, nets=nets)
+    return nets
+
+
+def _manual_lookup(ip: str):
+    """命中人工映射时直接返回（含城市坐标），跳过在线查询。"""
+    nets = _load_overrides()
+    if not nets:
+        return None
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return None
+    for net, city in nets:
+        if addr in net:
+            if "-" in city:
+                prov, cname = city.split("-", 1)
+            else:
+                prov, cname = "", city
+            lat, lon = get_city_coord(cname, prov)
+            return {"city": city, "lat": lat, "lon": lon}
+    return None
+
+
 def ip_to_city(ip: str) -> dict:
-    """查询 IP 归属地：多源轮询，再用城市坐标表补经纬度。返回 {city, lat, lon}。"""
+    """查询 IP 归属地：人工映射优先 → 多源并发交叉校验 → 城市坐标表补经纬度。"""
+    # 人工映射（企业固定出口等）优先级最高，命中即返回
+    manual = _manual_lookup(ip)
+    if manual:
+        return manual
+
     now = time.time()
 
     cached = _cache.get(ip)
