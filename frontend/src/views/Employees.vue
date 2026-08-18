@@ -23,6 +23,12 @@
           </template>
         </el-table-column>
         <el-table-column prop="hostname" label="主机名" />
+        <el-table-column label="驻地" width="130">
+          <template #default="{ row }">
+            <span v-if="row.base_city">{{ row.base_city.split('-').pop() }}</span>
+            <span v-else class="text-muted">未设置</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="latest_ip" label="最新 IP" />
         <el-table-column prop="latest_city" label="所在城市" />
         <el-table-column prop="latest_time" label="最后上报时间" />
@@ -60,13 +66,23 @@
     </el-card>
 
     <!-- 编辑姓名弹窗 -->
-    <el-dialog v-model="editVisible" title="编辑员工姓名" width="400px">
+    <el-dialog v-model="editVisible" title="编辑员工" width="440px">
       <el-form label-width="80px">
         <el-form-item label="主机名">
           <el-input :model-value="editRow?.hostname" disabled />
         </el-form-item>
         <el-form-item label="员工姓名">
           <el-input v-model="editName" placeholder="请输入员工姓名" @keyup.enter="saveName" />
+        </el-form-item>
+        <el-form-item label="驻地">
+          <el-input v-model="editBase" placeholder="常驻办公城市（用于异地判断）">
+            <template #append>
+              <el-button @click="fillCurrentCity" :disabled="!editRow || editRow.latest_city === '-'">填入当前城市</el-button>
+            </template>
+          </el-input>
+          <div style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-top:2px">
+            当前城市：{{ editRow && editRow.latest_city !== '-' ? editRow.latest_city : '暂无定位' }}；清空驻地 = 不参与异地统计
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -94,6 +110,7 @@ const total = ref(0)
 const editVisible = ref(false)
 const editRow = ref(null)
 const editName = ref('')
+const editBase = ref('')
 const saving = ref(false)
 
 async function loadData() {
@@ -121,13 +138,20 @@ function handleSizeChange() {
 function openEdit(row) {
   editRow.value = row
   editName.value = row.name || ''
+  editBase.value = row.base_city || ''
   editVisible.value = true
+}
+
+function fillCurrentCity() {
+  if (editRow.value && editRow.value.latest_city && editRow.value.latest_city !== '-') {
+    editBase.value = editRow.value.latest_city
+  }
 }
 
 async function saveName() {
   saving.value = true
   try {
-    await updateEmployee(editRow.value.id, { name: editName.value })
+    await updateEmployee(editRow.value.id, { name: editName.value, base_city: editBase.value })
     ElMessage.success('保存成功')
     editVisible.value = false
     loadData()

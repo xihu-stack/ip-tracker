@@ -20,6 +20,10 @@
           <el-icon><Clock /></el-icon>
           <span>IP 历史</span>
         </el-menu-item>
+        <el-menu-item index="/location">
+          <el-icon><LocationInformation /></el-icon>
+          <span>位置动态</span>
+        </el-menu-item>
         <el-menu-item index="/guide">
           <el-icon><Document /></el-icon>
           <span>使用说明</span>

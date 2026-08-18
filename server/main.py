@@ -13,18 +13,29 @@ from routers import report, query, auth
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
 
-    # 数据库迁移：为旧表添加 last_seen_at 字段
+    # 数据库迁移：为旧表添加缺失字段
     import sqlalchemy
     with engine.connect() as conn:
-        try:
-            conn.execute(sqlalchemy.text("ALTER TABLE employees ADD COLUMN last_seen_at DATETIME"))
-            conn.commit()
-            # 将已有行的 last_seen_at 设为 created_at（避免 NULL 导致查询报错）
-            conn.execute(sqlalchemy.text("UPDATE employees SET last_seen_at = created_at WHERE last_seen_at IS NULL"))
-            conn.commit()
-            print("[startup] 已添加 employees.last_seen_at 字段")
-        except Exception:
-            pass  # 字段已存在，忽略
+        for ddl, backfill, label in (
+            (
+                "ALTER TABLE employees ADD COLUMN last_seen_at DATETIME",
+                "UPDATE employees SET last_seen_at = created_at WHERE last_seen_at IS NULL",
+                "employees.last_seen_at",
+            ),
+            (
+                "ALTER TABLE employees ADD COLUMN base_city VARCHAR(128) DEFAULT ''",
+                "UPDATE employees SET base_city = '' WHERE base_city IS NULL",
+                "employees.base_city",
+            ),
+        ):
+            try:
+                conn.execute(sqlalchemy.text(ddl))
+                conn.commit()
+                conn.execute(sqlalchemy.text(backfill))
+                conn.commit()
+                print(f"[startup] 已添加 {label} 字段")
+            except Exception:
+                pass  # 字段已存在，忽略
 
     # 首次启动自动创建默认管理员
     db = SessionLocal()

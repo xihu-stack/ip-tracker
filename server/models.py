@@ -29,6 +29,7 @@ class Employee(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     hostname: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(128), default="")
+    base_city: Mapped[str] = mapped_column(String(128), default="")   # 驻地城市（用于异地办公判断）
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 

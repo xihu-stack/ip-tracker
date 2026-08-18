@@ -117,6 +117,7 @@ def list_employees(
             "id": emp.id,
             "hostname": emp.hostname,
             "name": emp.name or "",
+            "base_city": emp.base_city or "",
             "created_at": emp.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             "latest_ip": latest.ip if latest else "-",
             "latest_city": latest.city if latest else "-",
@@ -239,6 +240,7 @@ def map_data(db: Session = Depends(get_db), _: Admin = Depends(get_current_admin
 
 class UpdateEmployeeRequest(BaseModel):
     name: str
+    base_city: str = ""   # 不传或空字符串 = 清空驻地
 
 
 @router.put("/employees/{employee_id}")
@@ -247,8 +249,9 @@ def update_employee(employee_id: int, data: UpdateEmployeeRequest, db: Session =
     if not employee:
         raise HTTPException(status_code=404, detail="员工不存在")
     employee.name = data.name
+    employee.base_city = (data.base_city or "").strip()
     db.commit()
-    return {"status": "ok", "id": employee.id, "hostname": employee.hostname, "name": employee.name}
+    return {"status": "ok", "id": employee.id, "hostname": employee.hostname, "name": employee.name, "base_city": employee.base_city}
 
 
 @router.delete("/employees/{employee_id}")
@@ -260,3 +263,93 @@ def delete_employee(employee_id: int, db: Session = Depends(get_db), _: Admin = 
     db.delete(employee)
     db.commit()
     return {"status": "ok", "message": f"已删除员工 {employee.hostname} 及其所有记录"}
+
+
+def _valid_city(city):
+    return bool(city) and city != "未知" and city != "-"
+
+
+@router.get("/location-stats")
+def location_stats(db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)):
+    """人员位置统计：重点输出当前不在驻地办公的人员 + 最近位置变更记录。"""
+    now = datetime.now()
+    employees = db.query(Employee).all()
+    latest_map = _latest_by_employee(db)
+
+    summary = {"total": len(employees), "base_set": 0, "away": 0, "home": 0, "unknown": 0, "no_base": 0}
+    away_list = []
+
+    for emp in employees:
+        base = (emp.base_city or "").strip()
+        latest = latest_map.get(emp.id)
+        if not base or not latest:
+            summary["no_base"] += 1
+            continue
+        summary["base_set"] += 1
+        cur = latest.city or ""
+        if not _valid_city(cur):
+            summary["unknown"] += 1
+            continue
+        if cur == base:
+            summary["home"] += 1
+            continue
+
+        # 异地办公：回溯最近记录，找到当前这次"离开驻地"的起点
+        # （记录已按 1 小时/IP 变更去重，城市变化即视为位置变更）
+        summary["away"] += 1
+        recs = db.query(IpRecord).filter(IpRecord.employee_id == emp.id)\
+            .order_by(IpRecord.reported_at.desc()).limit(120).all()
+        away_since = None
+        for r in recs:  # 从新到旧
+            if r.city == base:
+                break
+            if _valid_city(r.city):
+                away_since = r.reported_at
+        away_list.append({
+            "id": emp.id,
+            "name": emp.name or "",
+            "hostname": emp.hostname,
+            "base_city": base,
+            "current_city": cur,
+            "current_ip": latest.ip or "-",
+            "away_since": away_since.strftime("%Y-%m-%d %H:%M") if away_since else None,
+            "away_hours": round((now - away_since).total_seconds() / 3600, 1) if away_since else None,
+        })
+
+    # 最近 7 天位置变更事件（相邻记录城市不同即一次变更，"未知"跳过）
+    since = now - timedelta(days=7)
+    changes = []
+    for emp in employees:
+        recs = db.query(IpRecord).filter(
+            IpRecord.employee_id == emp.id,
+            IpRecord.reported_at >= since - timedelta(days=1)
+        ).order_by(IpRecord.reported_at.desc()).all()
+        # 取窗口起点之前最后一条记录作为对照基准
+        prev_city = None
+        prev = db.query(IpRecord).filter(
+            IpRecord.employee_id == emp.id, IpRecord.reported_at < since - timedelta(days=1)
+        ).order_by(IpRecord.reported_at.desc()).first()
+        if prev:
+            prev_city = prev.city if _valid_city(prev.city) else None
+        for r in reversed(recs):  # 从旧到新
+            if not _valid_city(r.city):
+                continue
+            if prev_city and r.city != prev_city:
+                changes.append({
+                    "time": r.reported_at.strftime("%Y-%m-%d %H:%M"),
+                    "name": emp.name or "",
+                    "hostname": emp.hostname,
+                    "from_city": prev_city,
+                    "to_city": r.city,
+                    "is_away": bool((emp.base_city or "").strip()) and r.city != emp.base_city,
+                })
+            prev_city = r.city
+
+    changes.sort(key=lambda c: c["time"], reverse=True)
+    away_list.sort(key=lambda a: a["away_hours"] or 0, reverse=True)
+
+    return {
+        "summary": summary,
+        "away_list": away_list,
+        "changes": changes[:100],
+    }
