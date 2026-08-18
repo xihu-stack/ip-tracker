@@ -29,7 +29,23 @@
     <!-- 右侧登录表单区 -->
     <div class="form-panel">
       <div class="grid-bg"></div>
-      <div class="login-card">
+
+      <!-- SSO 模式：自动跳转统一门户 -->
+      <div class="login-card" v-if="ssoEnabled && !showPwdForm">
+        <div class="login-header">
+          <h2>统一门户登录</h2>
+          <p>{{ countdown > 0 ? `${countdown} 秒后自动跳转到统一门户…` : '正在跳转到统一门户…' }}</p>
+        </div>
+        <el-button size="large" class="login-btn" @click="goSso">
+          前往统一门户登录
+        </el-button>
+        <div class="login-tip">
+          <a class="pwd-link" @click.prevent="usePassword">改用账号密码登录</a>
+        </div>
+      </div>
+
+      <!-- 账号密码模式 -->
+      <div class="login-card" v-else>
         <div class="login-header">
           <h2>欢迎登录</h2>
           <p>请输入管理员账号</p>
@@ -47,7 +63,10 @@
             <span v-if="!loading">登 录</span>
           </el-button>
         </el-form>
-        <div class="login-tip">内网管理系统 · 如需重置密码请联系服务器管理员</div>
+        <div class="login-tip" v-if="ssoEnabled">
+          <a class="pwd-link" @click.prevent="goSso">使用统一门户登录</a>
+        </div>
+        <div class="login-tip" v-else>内网管理系统 · 如需重置密码请联系服务器管理员</div>
       </div>
       <div class="form-footer">IP TRACKER · ADMIN CONSOLE</div>
     </div>
@@ -55,14 +74,56 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { login } from '../api'
 
 const router = useRouter()
+const route = useRoute()
 const loading = ref(false)
 const form = ref({ username: '', password: '' })
+
+// SSO：启用时自动跳统一门户，保留账号密码应急入口（/login?pwd=1 直接进密码表单）
+const ssoEnabled = ref(false)
+const showPwdForm = ref(false)
+const countdown = ref(3)
+let ssoTimer = null
+
+function goSso() {
+  if (ssoTimer) { clearInterval(ssoTimer); ssoTimer = null }
+  const target = String(route.query.redirect || '/')
+  const safe = target.startsWith('/') && !target.startsWith('//') ? target : '/'
+  window.location.href = '/api/auth/sso-login?redirect=' + encodeURIComponent(safe)
+}
+
+function usePassword() {
+  if (ssoTimer) { clearInterval(ssoTimer); ssoTimer = null }
+  showPwdForm.value = true
+}
+
+onMounted(async () => {
+  if (route.query.pwd === '1') showPwdForm.value = true
+  try {
+    const res = await fetch('/api/auth/config')
+    const data = await res.json()
+    ssoEnabled.value = !!data.sso_enabled
+  } catch {}
+  if (ssoEnabled.value && !showPwdForm.value) {
+    ssoTimer = setInterval(() => {
+      countdown.value -= 1
+      if (countdown.value <= 0) {
+        clearInterval(ssoTimer)
+        ssoTimer = null
+        goSso()
+      }
+    }, 1000)
+  }
+})
+
+onUnmounted(() => {
+  if (ssoTimer) clearInterval(ssoTimer)
+})
 
 async function handleLogin() {
   if (!form.value.username || !form.value.password) {
@@ -343,6 +404,12 @@ async function handleLogin() {
   font-size: 12px;
   color: #8fa9c6;
 }
+.pwd-link {
+  color: #0b6ef5;
+  cursor: pointer;
+  font-size: 13px;
+}
+.pwd-link:hover { text-decoration: underline; }
 .form-footer {
   position: absolute;
   bottom: 24px;

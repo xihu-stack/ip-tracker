@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 // 路由懒加载：每个页面独立分包，首屏只加载登录页所需的代码
 const routes = [
   { path: '/login', name: 'Login', component: () => import('../views/Login.vue'), meta: { public: true } },
+  { path: '/sso', name: 'SsoCallback', component: () => import('../views/SsoCallback.vue'), meta: { public: true } },
   { path: '/', name: 'Dashboard', component: () => import('../views/Dashboard.vue') },
   { path: '/employees', name: 'Employees', component: () => import('../views/Employees.vue') },
   { path: '/history', name: 'History', component: () => import('../views/History.vue') },
