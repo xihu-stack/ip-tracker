@@ -134,14 +134,20 @@
       </template>
       <el-alert type="info" :closable="false" class="mb16" show-icon>
         <template #title>企业固定出口（办公点专线、VPN 出口）在这里钉住城市：命中的 IP 直接采用映射结果，不再走在线查询，100% 准确。</template>
-        城市名建议与系统格式一致（如"江苏-苏州市"，可从员工列表的当前城市复制）；支持 # 开头注释行。
+        固定写法：每行一条 <code>IP或网段=城市名</code>（用等号分隔，支持 # 注释行）；城市名建议从员工列表的当前城市复制以保证格式一致。
       </el-alert>
       <el-input
         v-model="geoMap" type="textarea" :rows="6"
-        placeholder="每行一条：IP 或网段 + 空格 + 城市名&#10;203.0.113.5 上海&#10;10.8.0.0/24 江苏-苏州市&#10;# 公司VPN出口"
+        placeholder="每行一条：IP或网段=城市名&#10;203.0.113.5=上海&#10;10.8.0.0/24=江苏-苏州市&#10;# 公司VPN出口"
       />
-      <div style="margin-top: 12px">
+      <div style="margin-top: 12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap">
         <el-button type="primary" :loading="savingGeo" @click="saveGeo">保存映射</el-button>
+        <el-input v-model="geoTestIp" placeholder="输入 IP 检测映射" style="width: 200px" @keyup.enter="testGeo" />
+        <el-button :loading="testingGeo" @click="testGeo">检测是否生效</el-button>
+        <span v-if="geoTestResult" style="font-size:13px"
+              :style="{ color: geoTestResult.hit ? '#16a34a' : 'var(--text-muted)' }">
+          {{ geoTestResult.message }}
+        </span>
       </div>
     </el-card>
   </div>
@@ -229,6 +235,21 @@ function copyCallback() {
 
 const geoMap = ref('')
 const savingGeo = ref(false)
+const geoTestIp = ref('')
+const geoTestResult = ref(null)
+const testingGeo = ref(false)
+
+async function testGeo() {
+  if (!geoTestIp.value.trim()) { ElMessage.warning('请输入要检测的 IP'); return }
+  testingGeo.value = true
+  geoTestResult.value = null
+  try {
+    const res = await api.post('/settings/geo/test', { ip: geoTestIp.value.trim() })
+    geoTestResult.value = res.data
+  } catch {} finally {
+    testingGeo.value = false
+  }
+}
 const geoHealth = ref({ abnormal_ips: 0, abnormal_records: 0, cleanup: {} })
 const geoCleanup = ref({ running: false, total: 0, done: 0, message: '' })
 let geoTimer = null

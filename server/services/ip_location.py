@@ -241,9 +241,12 @@ def _load_overrides():
             db.close()
         for line in raw.splitlines():
             line = line.strip()
-            if not line or line.startswith("#") or " " not in line:
+            if not line or line.startswith("#"):
                 continue
-            cidr, _, city = line.partition(" ")
+            # 固定写法：IP或网段=城市名（用 = 分隔，避免城市名含空格/肉眼难分辨的问题）
+            if "=" not in line:
+                continue
+            cidr, _, city = line.partition("=")
             try:
                 nets.append((ipaddress.ip_network(cidr.strip(), strict=False), city.strip()))
             except ValueError:
@@ -254,8 +257,14 @@ def _load_overrides():
     return nets
 
 
+def refresh_overrides():
+    """清掉映射表缓存，下次查询立即读到最新配置（检测接口用）。"""
+    _override_cache["nets"] = None
+
+
 def _manual_lookup(ip: str):
-    """命中人工映射时直接返回（含城市坐标），跳过在线查询。"""
+    """命中人工映射时直接返回（含城市坐标），跳过在线查询。
+    返回带 source="manual" 标记，调用方据此保留"人工映射"来源。"""
     nets = _load_overrides()
     if not nets:
         return None
@@ -270,7 +279,7 @@ def _manual_lookup(ip: str):
             else:
                 prov, cname = "", city
             lat, lon = get_city_coord(cname, prov)
-            return {"city": city, "lat": lat, "lon": lon}
+            return {"city": city, "lat": lat, "lon": lon, "source": "manual"}
     return None
 
 
@@ -300,9 +309,9 @@ def ip_to_city(ip: str) -> dict:
             lat, lon = None, None
         else:
             lat, lon = get_city_coord(city, province)
-        result = {"city": label, "lat": lat, "lon": lon, "_time": now}
+        result = {"city": label, "lat": lat, "lon": lon, "source": "online", "_time": now}
     else:
-        result = {"city": "未知", "lat": None, "lon": None, "_time": now}
+        result = {"city": "未知", "lat": None, "lon": None, "source": "online", "_time": now}
 
     _cache[ip] = result
 

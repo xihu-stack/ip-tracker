@@ -79,14 +79,17 @@ def report(data: ReportRequest, db: Session = Depends(get_db), x_report_token: O
     longitude = data.lon if client_city else None
 
     location = ip_to_city(data.ip)
+    city_source = ""
     if location.get("city") and location["city"] != "未知":
         city = location["city"]
         latitude = location.get("lat")
         longitude = location.get("lon")
+        city_source = location.get("source", "")
     elif not city or city == "":
         city = location.get("city", "未知")
         latitude = location.get("lat")
         longitude = location.get("lon")
+        city_source = location.get("source", "")
 
     # 去重：同一员工同一 IP 1小时内不新增记录
     recent = db.query(IpRecord).filter(
@@ -95,12 +98,15 @@ def report(data: ReportRequest, db: Session = Depends(get_db), x_report_token: O
         IpRecord.reported_at >= datetime.now() - timedelta(hours=1)
     ).first()
     if recent:
-        # 去重不新增记录，但更新定位信息（可能查到了更精确的区级数据/新坐标）
+        # 去重不新增记录，但更新定位信息；人工映射的值保留标记，在线结果不许覆盖人工值
         if city and city != "未知" and recent.city != city:
-            recent.city = city
+            if recent.city_source != "manual" or city_source == "manual":
+                recent.city = city
+                recent.city_source = city_source
         if latitude is not None and longitude is not None:
-            recent.latitude = latitude
-            recent.longitude = longitude
+            if recent.city_source != "manual" or city_source == "manual":
+                recent.latitude = latitude
+                recent.longitude = longitude
         db.commit()
         return {"status": "ok", "message": "duplicate", "city": city}
 
@@ -108,6 +114,7 @@ def report(data: ReportRequest, db: Session = Depends(get_db), x_report_token: O
         employee_id=employee.id,
         ip=data.ip,
         city=city,
+        city_source=city_source,
         latitude=latitude,
         longitude=longitude,
         reported_at=datetime.now()

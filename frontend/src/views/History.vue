@@ -20,7 +20,12 @@
       <el-table :data="records" stripe v-loading="loading" empty-text="请选择员工查看 IP 历史记录">
         <el-table-column prop="reported_at" label="上报时间" width="200" />
         <el-table-column prop="ip" label="公网 IP" width="180" />
-        <el-table-column prop="city" label="所在城市" />
+        <el-table-column label="所在城市">
+          <template #default="{ row }">
+            {{ row.city }}
+            <el-tag v-if="row.city_source === 'manual'" size="small" effect="plain" style="margin-left:6px; color:#d97706; border-color:#fcd34d; background:#fffbeb">人工</el-tag>
+          </template>
+        </el-table-column>
       </el-table>
 
       <div class="pagination-wrap">

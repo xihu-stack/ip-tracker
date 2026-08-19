@@ -42,7 +42,7 @@ def _latest_by_employee(db: Session) -> dict:
             order_by=IpRecord.reported_at.desc()
         ).label("rn")
         sub = db.query(
-            IpRecord.employee_id, IpRecord.ip, IpRecord.city, IpRecord.reported_at, rn
+            IpRecord.employee_id, IpRecord.ip, IpRecord.city, IpRecord.city_source, IpRecord.reported_at, rn
         ).subquery()
         return {row.employee_id: row for row in db.query(sub).filter(sub.c.rn == 1).all()}
 
@@ -101,6 +101,7 @@ def dashboard(db: Session = Depends(get_db), _: Admin = Depends(get_current_admi
             "name": emp.name or "",
             "latest_ip": latest.ip if latest else "-",
             "latest_city": latest.city if latest else "-",
+            "latest_city_source": (latest.city_source if latest else "") or "",
             "latest_time": emp.last_seen_at.strftime("%Y-%m-%d %H:%M:%S") if emp.last_seen_at else (latest.reported_at.strftime("%Y-%m-%d %H:%M:%S") if latest else "-"),
             "status": "never" if not latest else ("stale" if emp.last_seen_at and emp.last_seen_at < stale_threshold else "offline")
         })
@@ -148,6 +149,7 @@ def list_employees(
             "created_at": emp.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             "latest_ip": latest.ip if latest else "-",
             "latest_city": latest.city if latest else "-",
+            "latest_city_source": (latest.city_source if latest else "") or "",
             "latest_time": emp.last_seen_at.strftime("%Y-%m-%d %H:%M:%S") if emp.last_seen_at else (latest.reported_at.strftime("%Y-%m-%d %H:%M:%S") if latest else "-"),
             "is_online": bool(emp.last_seen_at and emp.last_seen_at >= threshold),
             "is_stale": bool(emp.last_seen_at and emp.last_seen_at < stale_threshold)
@@ -191,6 +193,7 @@ def employee_records(
         "id": r.id,
         "ip": r.ip,
         "city": r.city,
+        "city_source": r.city_source or "",
         "reported_at": r.reported_at.strftime("%Y-%m-%d %H:%M:%S")
     } for r in records]
 
@@ -420,8 +423,8 @@ def _run_geo_cleanup(ips: list):
             try:
                 loc = ip_to_city(ip)
                 new_city = loc.get("city", "未知")
-                n = db.query(IpRecord).filter(IpRecord.ip == ip).update({
-                    "city": new_city, "latitude": loc.get("lat"), "longitude": loc.get("lon"),
+                n = db.query(IpRecord).filter(IpRecord.ip == ip, IpRecord.city_source != "manual").update({
+                    "city": new_city, "city_source": loc.get("source", ""), "latitude": loc.get("lat"), "longitude": loc.get("lon"),
                 })
                 db.commit()
                 _geo_cleanup["updated"] += n

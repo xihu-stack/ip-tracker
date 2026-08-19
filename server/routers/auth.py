@@ -376,22 +376,60 @@ def put_geo_settings(data: GeoSettingsRequest, db: Session = Depends(get_db), _:
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-        parts = line.split(None, 1)
-        if len(parts) != 2 or not parts[1].strip():
+        if "=" not in line:
+            bad.append(line)
+            continue
+        cidr, _, city = line.partition("=")
+        if not city.strip():
             bad.append(line)
             continue
         try:
-            ipaddress.ip_network(parts[0], strict=False)
+            ipaddress.ip_network(cidr.strip(), strict=False)
         except ValueError:
             bad.append(line)
     if bad:
         raise HTTPException(
             status_code=400,
-            detail="以下行格式不正确（应为 IP或网段 + 空格 + 城市名，如 203.0.113.5 上海）：" + "；".join(bad[:3])
+            detail="以下行格式不正确（固定写法：IP或网段=城市名，如 203.0.113.5=上海）：" + "；".join(bad[:3])
         )
     _set_setting(db, "ip_city_map", (data.ip_city_map or "").strip())
     db.commit()
     return {"status": "ok", "message": "映射已保存，约 30 秒内生效（命中的 IP 不再走在线查询）"}
+
+
+class GeoTestRequest(BaseModel):
+    ip: str
+
+
+@router.post("/settings/geo/test")
+def test_geo_mapping(data: GeoTestRequest, db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)):
+    """检测某个 IP 当前的归属地解析结果：命中人工映射返回命中的规则；未命中返回在线解析值。"""
+    import ipaddress as _ipa
+    from services.ip_location import ip_to_city, refresh_overrides, _load_overrides
+    ip = (data.ip or "").strip()
+    try:
+        _ipa.ip_address(ip)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="IP 格式不正确")
+
+    refresh_overrides()   # 立即读取最新映射，绕过 30 秒缓存
+    loc = ip_to_city(ip)
+    hit_rule = None
+    try:
+        addr = _ipa.ip_address(ip)
+        for net, city in _load_overrides():
+            if addr in net:
+                hit_rule = f"{net}={city}"
+                break
+    except Exception:
+        pass
+
+    if loc.get("source") == "manual":
+        return {"hit": True, "source": "manual", "city": loc["city"], "rule": hit_rule,
+                "message": f"已命中人工映射：{hit_rule}"}
+    return {"hit": False, "source": loc.get("source", "online"), "city": loc.get("city", "未知"),
+            "rule": None,
+            "message": f"未命中人工映射，当前按在线解析：{loc.get('city', '未知')}"}
 
 
 # ==================== 账号密码登录 ====================

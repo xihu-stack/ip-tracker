@@ -27,6 +27,11 @@ async def lifespan(app: FastAPI):
                 "UPDATE employees SET base_city = '' WHERE base_city IS NULL",
                 "employees.base_city",
             ),
+            (
+                "ALTER TABLE ip_records ADD COLUMN city_source VARCHAR(16) DEFAULT ''",
+                "UPDATE ip_records SET city_source = '' WHERE city_source IS NULL",
+                "ip_records.city_source",
+            ),
         ):
             try:
                 conn.execute(sqlalchemy.text(ddl))

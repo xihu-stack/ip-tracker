@@ -54,6 +54,7 @@ class IpRecord(Base):
     employee_id: Mapped[int] = mapped_column(Integer, ForeignKey("employees.id"), nullable=False)
     ip: Mapped[str] = mapped_column(String(45), nullable=False)
     city: Mapped[str] = mapped_column(String(128), default="")
+    city_source: Mapped[str] = mapped_column(String(16), default="")   # manual=人工映射 / 空=在线解析
     latitude: Mapped[float] = mapped_column(Float, nullable=True)
     longitude: Mapped[float] = mapped_column(Float, nullable=True)
     reported_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
