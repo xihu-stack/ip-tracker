@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>SSO 对接示例</title>
+<style>
+  body { margin:0; font-family:-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+         background:#eef4fd; color:#10314f; display:flex; min-height:100vh; align-items:center; justify-content:center; }
+  .card { background:#fff; border:1px solid #d3e3f7; border-radius:14px; padding:40px 48px; width:380px;
+          box-shadow:0 18px 40px rgba(30,90,180,.12); }
+  h2 { margin:0 0 6px; } .muted { color:#628cb8; font-size:13px; margin:0 0 22px; }
+  .info { background:#f4f9ff; border-radius:8px; padding:14px 16px; font-size:14px; line-height:2; margin-bottom:18px; }
+  .info b { color:#0b6ef5; }
+  button { width:100%; height:44px; border:none; border-radius:8px; color:#fff; font-size:15px; font-weight:600;
+           background:linear-gradient(135deg,#0b6ef5,#2b9cff); cursor:pointer; }
+  button:hover { filter:brightness(1.08); }
+  .ghost { background:none; color:#0b6ef5; border:1px solid #b9d4f5; margin-top:10px; }
+  .err { color:#dc2626; font-size:13px; margin-bottom:12px; word-break:break-all; }
+  .hint { font-size:12px; color:#8fa9c6; margin-top:16px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2 id="title">统一身份认证示例</h2>
+  <p class="muted" id="subtitle">正在检查登录状态…</p>
+  <div class="err" id="error" style="display:none"></div>
+  <div class="info" id="userinfo" style="display:none"></div>
+  <button id="btn" style="display:none">前往统一门户登录</button>
+  <button class="ghost" id="logout" style="display:none">退出登录</button>
+  <div class="hint">SSO Demo · 参考 sso-demo/README.md</div>
+</div>
+
+<script>
+const qs = new URLSearchParams(location.search)
+const $ = id => document.getElementById(id)
+
+// 1) 回跳落地：URL 里的 token 存本地并清掉地址栏参数
+if (qs.get('token')) {
+  localStorage.setItem('token', qs.get('token'))
+  if (qs.get('id_token')) localStorage.setItem('sso_id_token', qs.get('id_token'))
+  localStorage.removeItem('logged_out')
+  history.replaceState({}, '', '/')
+}
+if (qs.get('error')) {
+  $('error').textContent = '登录失败：' + qs.get('error')
+  $('error').style.display = 'block'
+}
+
+let ssoConfig = { sso_enabled: false, logout_url: '' }
+
+async function init() {
+  try {
+    ssoConfig = await (await fetch('/api/auth/config')).json()
+  } catch {}
+
+  const token = localStorage.getItem('token')
+  if (token) {
+    const me = await (await fetch('/api/me', { headers: { Authorization: 'Bearer ' + token } })).json()
+    if (me && me.username) return showUser(me)
+    // 令牌失效（过期或被门户踢下线）→ 清理进入未登录流程
+    localStorage.removeItem('token')
+    localStorage.removeItem('sso_id_token')
+  }
+  showLogin()
+}
+
+function showUser(me) {
+  $('title').textContent = '已登录'
+  $('subtitle').textContent = '以下信息来自统一门户的用户信息接口'
+  $('userinfo').innerHTML = '域账号：<b>' + esc(me.username) + '</b><br>姓名：<b>' + esc(me.name) +
+    '</b><br>邮箱：<b>' + esc(me.email) + '</b>'
+  $('userinfo').style.display = 'block'
+  $('logout').style.display = 'block'
+}
+
+function showLogin() {
+  const loggedOut = localStorage.getItem('logged_out') === '1'
+  if (!ssoConfig.sso_enabled) {
+    $('title').textContent = 'SSO 未配置'
+    $('subtitle').textContent = '请编辑 backend/.env 填写统一门户参数后重启'
+    return
+  }
+  $('title').textContent = loggedOut ? '已退出登录' : '统一身份认证示例'
+  $('subtitle').textContent = loggedOut ? '如需重新进入，请点击下方按钮' : '即将自动跳转到统一门户…'
+  $('btn').style.display = 'block'
+  // 明确退出后不自动跳（防循环登录的关键，见 README 坑 3）
+  if (!loggedOut) setTimeout(goSso, 1000)
+}
+
+function goSso() {
+  localStorage.removeItem('logged_out')   // 用户主动登录，解除停留
+  location.href = '/api/auth/sso-login?redirect=/'
+}
+
+async function doLogout() {
+  const idToken = localStorage.getItem('sso_id_token') || ''
+  localStorage.setItem('logged_out', '1')            // 防自动跳门户 = 防循环登录
+  localStorage.removeItem('token')
+  localStorage.removeItem('sso_id_token')
+  if (ssoConfig.logout_url && idToken) {
+    // 带id_token_hint跳门户全局登出（不带会被400拒绝，见 README 坑 1）
+    location.href = ssoConfig.logout_url + '?id_token_hint=' + encodeURIComponent(idToken)
+  } else {
+    location.href = '/'
+  }
+}
+
+function esc(s) { return String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) }
+
+$('btn').onclick = goSso
+$('logout').onclick = doLogout
+init()
+</script>
+</body>
+</html>
