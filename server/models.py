@@ -23,6 +23,14 @@ class Setting(Base):
     value: Mapped[str] = mapped_column(String(1024), default="")
 
 
+class TokenRevocation(Base):
+    """令牌吊销记录：门户登出通知后，该时间点之前签发的 JWT 全部失效"""
+    __tablename__ = "token_revocations"
+
+    username: Mapped[str] = mapped_column(String(64), primary_key=True)
+    revoked_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+
 class Employee(Base):
     __tablename__ = "employees"
 

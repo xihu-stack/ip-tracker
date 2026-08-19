@@ -1,5 +1,6 @@
 import os
 import secrets
+import time
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, HTTPException, status
@@ -9,7 +10,7 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Admin
+from models import Admin, TokenRevocation
 
 # -- 配置 --
 ALGORITHM = "HS256"
@@ -65,8 +66,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
-    to_encode.update({"exp": expire})
+    now = datetime.now(timezone.utc)
+    to_encode.update({"exp": now + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS), "iat": int(now.timestamp())})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -87,4 +88,14 @@ def get_current_admin(token: str = Depends(oauth2_scheme), db: Session = Depends
     admin = db.query(Admin).filter(Admin.username == username).first()
     if admin is None:
         raise credentials_exception
+
+    # 令牌吊销检查：门户登出通知（logout-notify）之后签发的旧令牌全部失效。
+    # iat 按秒截断，同秒内用 <= 避免临界漏判
+    rev = db.query(TokenRevocation).filter(TokenRevocation.username == username).first()
+    if rev and int(payload.get("iat") or 0) <= int(rev.revoked_at.timestamp()):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="会话已在统一门户注销，请重新登录",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return admin

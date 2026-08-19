@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Admin, Setting
+from models import Admin, Setting, TokenRevocation
 from auth import verify_password, hash_password, create_access_token, get_current_admin
 
 router = APIRouter(prefix="/api", tags=["auth"])
@@ -218,6 +218,35 @@ def auth_callback(request: Request, code: str = "", state: str = "", db: Session
     return RedirectResponse(
         f"{front_base}sso?token={token}&redirect={urllib.parse.quote(rec['redirect'])}{extra}"
     )
+
+
+# ---------- 门户登出通知（全局单点登出的反方向：门户退出时踢下本系统会话） ----------
+
+class LogoutNotifyRequest(BaseModel):
+    username: str
+    logoutAt: int = 0
+
+
+@router.post("/auth/logout-notify")
+def logout_notify(data: LogoutNotifyRequest, db: Session = Depends(get_db)):
+    """接收统一门户的登出回调（应用管理 → 编辑应用 → 登出回调地址填本接口）。
+
+    本系统使用无状态 JWT，"销毁本地会话"通过令牌吊销实现：
+    记录该用户的吊销时间，早于该时间签发的令牌全部失效（前端 30 秒轮询内自动回到登录页）。
+    """
+    from datetime import datetime as _dt
+    username = (data.username or "").strip()
+    if not username:
+        return {"status": "ignored", "message": "缺少 username"}
+    now = _dt.now()
+    rev = db.query(TokenRevocation).filter(TokenRevocation.username == username).first()
+    if rev:
+        rev.revoked_at = now
+    else:
+        db.add(TokenRevocation(username=username, revoked_at=now))
+    db.commit()
+    print(f"[oauth] 收到门户登出通知，已吊销本地令牌: {username} (logoutAt={data.logoutAt})")
+    return {"status": "ok", "message": f"已吊销 {username} 的本地会话"}
 
 
 # ---------- SSO 配置管理（后台「系统设置」页面用） ----------
