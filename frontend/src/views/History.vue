@@ -22,8 +22,9 @@
         <el-table-column prop="ip" label="公网 IP" width="180" />
         <el-table-column label="所在城市">
           <template #default="{ row }">
-            {{ row.city }}
+            <span>{{ row.city }}</span>
             <el-tag v-if="row.city_source === 'manual'" size="small" effect="plain" style="margin-left:6px; color:#d97706; border-color:#fcd34d; background:#fffbeb">人工</el-tag>
+            <el-button link type="primary" size="small" style="margin-left:6px" @click="openEditCity(row)">改</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -40,13 +41,36 @@
         />
       </div>
     </el-card>
+
+    <!-- 修改城市弹窗 -->
+    <el-dialog v-model="editCityVisible" title="修正城市" width="420px">
+      <el-form label-width="90px">
+        <el-form-item label="IP">
+          <el-input :model-value="editRow?.ip" disabled />
+        </el-form-item>
+        <el-form-item label="时间">
+          <el-input :model-value="editRow?.reported_at" disabled />
+        </el-form-item>
+        <el-form-item label="城市">
+          <el-input v-model="editCity" placeholder="如 江苏-苏州市，填 未知 可清除定位" />
+        </el-form-item>
+      </el-form>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.8">
+        修正后的值标记为「人工」，在线解析和自动修正都不会再覆盖它。
+      </div>
+      <template #footer>
+        <el-button @click="editCityVisible = false">取消</el-button>
+        <el-button type="primary" :loading="editSaving" @click="saveCity">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getEmployees, getEmployeeRecords } from '../api'
+import { ElMessage } from 'element-plus'
+import { getEmployees, getEmployeeRecords, updateRecord } from '../api'
 
 const route = useRoute()
 const employeeList = ref([])
@@ -58,6 +82,29 @@ const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
+
+const editCityVisible = ref(false)
+const editRow = ref(null)
+const editCity = ref('')
+const editSaving = ref(false)
+
+function openEditCity(row) {
+  editRow.value = row
+  editCity.value = row.city === '未知' ? '' : row.city
+  editCityVisible.value = true
+}
+
+async function saveCity() {
+  editSaving.value = true
+  try {
+    await updateRecord(editRow.value.id, { city: editCity.value.trim() || '未知' })
+    ElMessage.success('已修正')
+    editCityVisible.value = false
+    loadRecords()
+  } catch {} finally {
+    editSaving.value = false
+  }
+}
 
 async function loadEmployeeList() {
   try {

@@ -392,6 +392,36 @@ def location_stats(db: Session = Depends(get_db), _: Admin = Depends(get_current
     }
 
 
+
+# ==================== 历史记录城市修改 ====================
+
+class UpdateRecordRequest(BaseModel):
+    city: str
+
+
+@router.put("/records/{record_id}")
+def update_record(record_id: int, data: UpdateRecordRequest, db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)):
+    """手动修正某条 IP 历史记录的城市。修正后的值标记为 manual，
+    后续在线解析/去重更新/一键修正都不会覆盖人工值。"""
+    from services.city_coords import get_city_coord
+    record = db.query(IpRecord).filter(IpRecord.id == record_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="记录不存在")
+    city = (data.city or "").strip()
+    if city != "未知" and not sane_city_label(city):
+        raise HTTPException(status_code=400, detail="城市名不合法（应为全中文或全英文城市名，如 江苏-苏州市）")
+    lat = lon = None
+    if city != "未知":
+        prov, _, cname = city.partition("-")
+        lat, lon = get_city_coord(cname, prov)
+    record.city = city
+    record.city_source = "manual"
+    record.latitude = lat
+    record.longitude = lon
+    db.commit()
+    return {"status": "ok", "id": record.id, "city": record.city}
+
+
 # ==================== 归属地数据体检与一键修正 ====================
 
 _geo_cleanup = {"running": False, "total": 0, "done": 0, "updated": 0, "failed": 0,

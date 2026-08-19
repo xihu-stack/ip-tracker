@@ -134,13 +134,16 @@
       </template>
       <el-alert type="info" :closable="false" class="mb16" show-icon>
         <template #title>企业固定出口（办公点专线、VPN 出口）在这里钉住城市：命中的 IP 直接采用映射结果，不再走在线查询，100% 准确。</template>
-        固定写法：每行一条 <code>IP或网段=城市名</code>（用等号分隔，支持 # 注释行）；城市名建议从员工列表的当前城市复制以保证格式一致。
+        逐行填写，格式固定；城市名建议从员工列表的当前城市复制。命中的记录会带「人工」标记。
       </el-alert>
-      <el-input
-        v-model="geoMap" type="textarea" :rows="6"
-        placeholder="每行一条：IP或网段=城市名&#10;203.0.113.5=上海&#10;10.8.0.0/24=江苏-苏州市&#10;# 公司VPN出口"
-      />
-      <div style="margin-top: 12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap">
+      <div v-for="(row, i) in geoRows" :key="i" class="geo-row">
+        <el-input v-model="row.ip" placeholder="IP 或网段（如 10.8.0.0/24）" style="width: 250px" />
+        <span class="geo-eq">=</span>
+        <el-input v-model="row.city" placeholder="城市名（如 江苏-苏州市）" style="width: 220px" />
+        <el-button link type="danger" @click="geoRows.splice(i, 1)">删除</el-button>
+      </div>
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap">
+        <el-button @click="geoRows.push({ ip: '', city: '' })">+ 添加一条</el-button>
         <el-button type="primary" :loading="savingGeo" @click="saveGeo">保存映射</el-button>
         <el-input v-model="geoTestIp" placeholder="输入 IP 检测映射" style="width: 200px" @keyup.enter="testGeo" />
         <el-button :loading="testingGeo" @click="testGeo">检测是否生效</el-button>
@@ -233,11 +236,19 @@ function copyCallback() {
   ElMessage.success('已复制')
 }
 
-const geoMap = ref('')
+const geoRows = ref([])
 const savingGeo = ref(false)
 const geoTestIp = ref('')
 const geoTestResult = ref(null)
 const testingGeo = ref(false)
+
+function parseGeoRows(text) {
+  return (text || '').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#') && l.includes('='))
+    .map(l => {
+      const [ip, ...rest] = l.split('=')
+      return { ip: ip.trim(), city: rest.join('=').trim() }
+    })
+}
 
 async function testGeo() {
   if (!geoTestIp.value.trim()) { ElMessage.warning('请输入要检测的 IP'); return }
@@ -276,14 +287,18 @@ async function runGeoCleanup() {
 async function loadGeo() {
   try {
     const res = await api.get('/settings/geo')
-    geoMap.value = res.data.ip_city_map || ''
+    geoRows.value = parseGeoRows(res.data.ip_city_map || '')
   } catch {}
 }
 
 async function saveGeo() {
+  const rows = geoRows.value.filter(r => r.ip.trim() || r.city.trim())
+  const invalid = rows.find(r => !r.ip.trim() || !r.city.trim())
+  if (invalid) { ElMessage.warning('每条映射的 IP 和城市名都要填写完整'); return }
   savingGeo.value = true
   try {
-    const res = await api.put('/settings/geo', { ip_city_map: geoMap.value })
+    const text = rows.map(r => `${r.ip.trim()}=${r.city.trim()}`).join('\n')
+    const res = await api.put('/settings/geo', { ip_city_map: text })
     ElMessage.success(res.data.message || '已保存')
   } catch {} finally {
     savingGeo.value = false
@@ -299,5 +314,7 @@ onMounted(() => { load(); loadGeo(); loadGeoHealth() })
 .settings-form { max-width: 640px; }
 .callback-url { font-family: Consolas, 'Courier New', monospace; }
 .field-hint { font-size: 12px; color: var(--text-muted); line-height: 1.6; margin-top: 4px; }
+.geo-row { display: flex; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+.geo-eq { margin: 0 10px; color: var(--text-muted); font-weight: 600; }
 .card-title { display: flex; align-items: center; }
 </style>
