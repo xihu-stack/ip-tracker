@@ -107,6 +107,29 @@
 
     <el-card class="mt16">
       <template #header>
+        <div class="card-title">归属地数据体检</div>
+      </template>
+      <el-alert type="info" :closable="false" class="mb16" show-icon>
+        <template #title>
+          <span v-if="geoHealth.abnormal_records > 0">
+            检测到 <b style="color:#dc2626">{{ geoHealth.abnormal_records }}</b> 条异常城市记录
+           （涉及 {{ geoHealth.abnormal_ips }} 个 IP，多为历史乱码数据）
+          </span>
+          <span v-else>归属地数据正常，没有异常城市记录 🎉</span>
+        </template>
+        点击"一键修正"会在后台重新解析这些 IP 的归属地并更新历史记录（新上报数据已自动拦截异常值）。
+      </el-alert>
+      <el-progress v-if="geoCleanup.running" :percentage="Math.round(geoCleanup.done / Math.max(geoCleanup.total, 1) * 100)"
+        :stroke-width="14" text-inside class="mb16" />
+      <div style="display:flex; gap:12px; align-items:center">
+        <el-button type="primary" :loading="geoCleanup.running" :disabled="geoHealth.abnormal_records === 0 && !geoCleanup.running"
+          @click="runGeoCleanup">一键修正</el-button>
+        <span v-if="geoCleanup.message" style="font-size:13px;color:var(--text-muted)">{{ geoCleanup.message }}</span>
+      </div>
+    </el-card>
+
+    <el-card class="mt16">
+      <template #header>
         <div class="card-title">IP 归属地人工映射（可选）</div>
       </template>
       <el-alert type="info" :closable="false" class="mb16" show-icon>
@@ -206,6 +229,28 @@ function copyCallback() {
 
 const geoMap = ref('')
 const savingGeo = ref(false)
+const geoHealth = ref({ abnormal_ips: 0, abnormal_records: 0, cleanup: {} })
+const geoCleanup = ref({ running: false, total: 0, done: 0, message: '' })
+let geoTimer = null
+
+async function loadGeoHealth() {
+  try {
+    const res = await api.get('/geo/health')
+    geoHealth.value = res.data
+    geoCleanup.value = { ...geoCleanup.value, ...res.data.cleanup }
+    if (res.data.cleanup?.running && !geoTimer) geoTimer = setInterval(loadGeoHealth, 2000)
+    if (!res.data.cleanup?.running && geoTimer) { clearInterval(geoTimer); geoTimer = null }
+  } catch {}
+}
+
+async function runGeoCleanup() {
+  try {
+    const res = await api.post('/geo/cleanup')
+    if (res.data.message) ElMessage.info(res.data.message)
+    geoCleanup.value.running = true
+    if (!geoTimer) geoTimer = setInterval(loadGeoHealth, 2000)
+  } catch {}
+}
 
 async function loadGeo() {
   try {
@@ -224,7 +269,7 @@ async function saveGeo() {
   }
 }
 
-onMounted(load)
+onMounted(() => { load(); loadGeo(); loadGeoHealth() })
 </script>
 
 <style scoped>

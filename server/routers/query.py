@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import threading
 import time
 
 from fastapi import APIRouter, Depends, Query, HTTPException
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Employee, IpRecord, Admin
 from auth import get_current_admin
+from services.ip_location import sane_city_label
 
 router = APIRouter(prefix="/api", tags=["query"])
 
@@ -378,3 +380,74 @@ def location_stats(db: Session = Depends(get_db), _: Admin = Depends(get_current
         "away_list": away_list,
         "changes": changes[:100],
     }
+
+
+# ==================== 归属地数据体检与一键修正 ====================
+
+_geo_cleanup = {"running": False, "total": 0, "done": 0, "updated": 0, "failed": 0,
+                "started_at": "", "finished_at": "", "message": ""}
+
+
+def _is_abnormal_city(city: str) -> bool:
+    """异常城市：不是合法城市标签且不是"未知"（乱码碎片、空值等）。"""
+    city = city or ""
+    return city != "未知" and not sane_city_label(city)
+
+
+def _abnormal_ips(db: Session) -> list:
+    pairs = db.query(IpRecord.ip, IpRecord.city).distinct().all()
+    return sorted({ip for ip, city in pairs if _is_abnormal_city(city)})
+
+
+@router.get("/geo/health")
+def geo_health(db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)):
+    """统计归属地异常的数据量（乱码城市等），供系统设置页展示。"""
+    ips = _abnormal_ips(db)
+    records = db.query(func.count(IpRecord.id)).filter(IpRecord.ip.in_(ips)).scalar() if ips else 0
+    return {
+        "abnormal_ips": len(ips),
+        "abnormal_records": records,
+        "cleanup": {k: _geo_cleanup[k] for k in ("running", "total", "done", "updated", "failed", "message")},
+    }
+
+
+def _run_geo_cleanup(ips: list):
+    from database import SessionLocal
+    from services.ip_location import ip_to_city
+    db = SessionLocal()
+    try:
+        for ip in ips:
+            try:
+                loc = ip_to_city(ip)
+                new_city = loc.get("city", "未知")
+                n = db.query(IpRecord).filter(IpRecord.ip == ip).update({
+                    "city": new_city, "latitude": loc.get("lat"), "longitude": loc.get("lon"),
+                })
+                db.commit()
+                _geo_cleanup["updated"] += n
+            except Exception:
+                _geo_cleanup["failed"] += 1
+                db.rollback()
+            _geo_cleanup["done"] += 1
+            time.sleep(0.4)   # 对外部数据源友好
+        _geo_cleanup["message"] = f"完成：修正 {_geo_cleanup['updated']} 条，失败 {_geo_cleanup['failed']} 个 IP"
+    finally:
+        _geo_cleanup["running"] = False
+        _geo_cleanup["finished_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        db.close()
+
+
+@router.post("/geo/cleanup")
+def geo_cleanup_start(db: Session = Depends(get_db), _: Admin = Depends(get_current_admin)):
+    """一键修正：后台线程重新解析所有异常城市的 IP 并更新历史记录。"""
+    if _geo_cleanup["running"]:
+        return {"status": "already_running", **{k: _geo_cleanup[k] for k in ("total", "done")}}
+    ips = _abnormal_ips(db)
+    if not ips:
+        _geo_cleanup["message"] = "没有异常数据"
+        return {"status": "ok", "message": "没有异常数据，无需修正", "total": 0}
+    _geo_cleanup.update(running=True, total=len(ips), done=0, updated=0, failed=0, message="",
+                        started_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"), finished_at="")
+    threading.Thread(target=_run_geo_cleanup, args=(ips,), daemon=True).start()
+    return {"status": "started", "total": len(ips),
+            "message": f"开始修正 {len(ips)} 个 IP 的历史记录，请稍候（每个 IP 约 0.5 秒）"}

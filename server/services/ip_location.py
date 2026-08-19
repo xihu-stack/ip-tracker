@@ -25,6 +25,44 @@ _NOISE_TOKENS = {
 }
 
 
+# ---------- 城市名合法性校验（拦截乱码/碎片，如 'Ϻ'/'㽭ʡ'/'M和'） ----------
+
+
+def sane_city_part(s: str) -> bool:
+    """合法的城市/省份短名：要么全部是常用汉字（2-12字），要么全部是 ASCII 字母
+    （真实英文城市名，≥2 字符）。GBK/UTF-8 乱码碎片（希腊字母、扩展A区汉字、
+    拉丁扩展、全角字符等混拼）一律不通过。"""
+    if not s:
+        return False
+    if all('\u4e00' <= c <= '\u9fff' for c in s):
+        return 2 <= len(s) <= 12
+    if all(c.isascii() and c.isalpha() for c in s):
+        return len(s) >= 2
+    return False
+
+
+def sane_city_label(label: str) -> bool:
+    """合法的完整城市标签：形如"苏州"或"江苏-苏州"（最多两段，每段都合法）。"""
+    if not label or label == "未知":
+        return label == "未知"
+    parts = label.split("-")
+    return len(parts) <= 2 and all(sane_city_part(p) for p in parts)
+
+
+def _normalize_geo(province: str, city: str):
+    """源数据出口统一校验：城市名不合法按无城市处理，省份不合法整体作废。
+    返回 (province, city) 或 None。"""
+    if city and not sane_city_part(city):
+        city = ""
+    if province and not sane_city_part(province):
+        province = ""
+    if not province and not city:
+        return None
+    if not city:
+        city = province
+    return province, city
+
+
 def _decode_body(raw: bytes) -> str:
     """数据源编码不固定（cip.cc/pconline 有时返回 GBK 中文），先严格按 UTF-8 解，
     失败则按 GB18030（GBK 超集）解，避免中文城市被拼成乱码碎片（如 'Ϻ'/'㽭ʡ'）。"""
@@ -84,11 +122,7 @@ def _query_cip_cc(ip: str):
                 city = data3[1]
     province = _normalize(province)
     city = _normalize(city)
-    if not province and not city:
-        return None
-    if not city:
-        city = province
-    return province, city
+    return _normalize_geo(province, city)
 
 
 def _query_pconline(ip: str):
@@ -106,11 +140,7 @@ def _query_pconline(ip: str):
             return None
         province = _normalize(data.get("pro") or "")
         city = _normalize(data.get("city") or "")
-        if not province and not city:
-            return None
-        if not city:
-            city = province
-        return province, city
+        return _normalize_geo(province, city)
     except Exception:
         return None
 
@@ -127,11 +157,7 @@ def _query_ip_api_com(ip: str):
             return None
         province = _normalize(data.get("regionName") or "")
         city = _normalize(data.get("city") or "")
-        if not province and not city:
-            return None
-        if not city:
-            city = province
-        return province, city
+        return _normalize_geo(province, city)
     except Exception:
         return None
 
@@ -267,7 +293,13 @@ def ip_to_city(ip: str) -> dict:
     if geo:
         province, city = geo
         label = city if (not province or province == city) else f"{province}-{city}"
-        lat, lon = get_city_coord(city, province)
+        # 出口终检：三源校验后的结果仍不合法（理论不应发生）一律记未知，绝不入库异常值
+        if not sane_city_label(label):
+            label = "未知"
+        if label == "未知":
+            lat, lon = None, None
+        else:
+            lat, lon = get_city_coord(city, province)
         result = {"city": label, "lat": lat, "lon": lon, "_time": now}
     else:
         result = {"city": "未知", "lat": None, "lon": None, "_time": now}

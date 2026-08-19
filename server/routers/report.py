@@ -1,5 +1,4 @@
 import os
-import re
 from datetime import datetime, timedelta
 from ipaddress import ip_address
 from typing import Optional, Union
@@ -10,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Employee, IpRecord
-from services.ip_location import ip_to_city
+from services.ip_location import ip_to_city, sane_city_label
 
 router = APIRouter(prefix="/api", tags=["report"])
 
@@ -62,8 +61,8 @@ def report(data: ReportRequest, db: Session = Depends(get_db), x_report_token: O
         raise HTTPException(status_code=403, detail="上报令牌无效")
 
     # 客户端自带的城市仅作兜底：PowerShell 解码不可靠可能产生乱码，
-    # 只接受含中文的值（客户端用 lang=zh-CN 查询，正常值必含中文）
-    client_city = data.city if (data.city and re.search(r"[\u4e00-\u9fa5]", data.city)) else ""
+    # 统一走合法性校验（全中文/全英文城市名，乱码碎片直接丢弃）
+    client_city = data.city if (data.city and sane_city_label(data.city)) else ""
     # 根据 hostname 查找或创建员工
     employee = db.query(Employee).filter(Employee.hostname == data.hostname).first()
     if not employee:
