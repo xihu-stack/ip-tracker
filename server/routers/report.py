@@ -100,11 +100,11 @@ def report(data: ReportRequest, db: Session = Depends(get_db), x_report_token: O
     if recent:
         # 去重不新增记录，但更新定位信息；人工映射的值保留标记，在线结果不许覆盖人工值
         if city and city != "未知" and recent.city != city:
-            if recent.city_source != "manual" or city_source == "manual":
+            if recent.city_source != "manual" or city_source == "manual" or not sane_city_label(recent.city or ""):
                 recent.city = city
                 recent.city_source = city_source
         if latitude is not None and longitude is not None:
-            if recent.city_source != "manual" or city_source == "manual":
+            if recent.city_source != "manual" or city_source == "manual" or not sane_city_label(recent.city or ""):
                 recent.latitude = latitude
                 recent.longitude = longitude
         db.commit()

@@ -14,6 +14,13 @@ from services.ip_location import sane_city_label
 
 router = APIRouter(prefix="/api", tags=["query"])
 
+
+def _disp(city: str) -> str:
+    """显示端兜底：异常城市一律显示"未知"——无论库里有什么脏数据，界面永不出现乱码。"""
+    c = city or ""
+    return c if (c == "未知" or sane_city_label(c)) else "未知"
+
+
 # 失联判定：超过 30 天未上报视为失联（区别于普通离线，多为离职/重装设备）
 STALE_DAYS = 30
 
@@ -100,7 +107,7 @@ def dashboard(db: Session = Depends(get_db), _: Admin = Depends(get_current_admi
             "hostname": emp.hostname,
             "name": emp.name or "",
             "latest_ip": latest.ip if latest else "-",
-            "latest_city": latest.city if latest else "-",
+            "latest_city": _disp(latest.city) if latest else "-",
             "latest_city_source": (latest.city_source if latest else "") or "",
             "latest_time": emp.last_seen_at.strftime("%Y-%m-%d %H:%M:%S") if emp.last_seen_at else (latest.reported_at.strftime("%Y-%m-%d %H:%M:%S") if latest else "-"),
             "status": "never" if not latest else ("stale" if emp.last_seen_at and emp.last_seen_at < stale_threshold else "offline")
@@ -148,7 +155,7 @@ def list_employees(
             "base_city": emp.base_city or "",
             "created_at": emp.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             "latest_ip": latest.ip if latest else "-",
-            "latest_city": latest.city if latest else "-",
+            "latest_city": _disp(latest.city) if latest else "-",
             "latest_city_source": (latest.city_source if latest else "") or "",
             "latest_time": emp.last_seen_at.strftime("%Y-%m-%d %H:%M:%S") if emp.last_seen_at else (latest.reported_at.strftime("%Y-%m-%d %H:%M:%S") if latest else "-"),
             "is_online": bool(emp.last_seen_at and emp.last_seen_at >= threshold),
@@ -192,7 +199,7 @@ def employee_records(
     data = [{
         "id": r.id,
         "ip": r.ip,
-        "city": r.city,
+        "city": _disp(r.city),
         "city_source": r.city_source or "",
         "reported_at": r.reported_at.strftime("%Y-%m-%d %H:%M:%S")
     } for r in records]
@@ -246,7 +253,7 @@ def map_data(db: Session = Depends(get_db), _: Admin = Depends(get_current_admin
         key = r.city
         if key not in city_map:
             city_map[key] = {
-                "city": r.city,
+                "city": _disp(r.city),
                 "lat": r.latitude,
                 "lng": r.longitude,
                 "count": 0,
@@ -316,7 +323,7 @@ def location_stats(db: Session = Depends(get_db), _: Admin = Depends(get_current
             summary["no_base"] += 1
             continue
         summary["base_set"] += 1
-        cur = latest.city or ""
+        cur = _disp(latest.city or "")
         if not _valid_city(cur):
             summary["unknown"] += 1
             continue
@@ -340,7 +347,7 @@ def location_stats(db: Session = Depends(get_db), _: Admin = Depends(get_current
             "name": emp.name or "",
             "hostname": emp.hostname,
             "base_city": base,
-            "current_city": cur,
+            "current_city": _disp(cur),
             "current_ip": latest.ip or "-",
             "away_since": away_since.strftime("%Y-%m-%d %H:%M") if away_since else None,
             "away_hours": round((now - away_since).total_seconds() / 3600, 1) if away_since else None,
@@ -369,8 +376,8 @@ def location_stats(db: Session = Depends(get_db), _: Admin = Depends(get_current
                     "time": r.reported_at.strftime("%Y-%m-%d %H:%M"),
                     "name": emp.name or "",
                     "hostname": emp.hostname,
-                    "from_city": prev_city,
-                    "to_city": r.city,
+                    "from_city": _disp(prev_city),
+                    "to_city": _disp(r.city),
                     "is_away": bool((emp.base_city or "").strip()) and r.city != emp.base_city,
                 })
             prev_city = r.city
@@ -423,7 +430,7 @@ def _run_geo_cleanup(ips: list):
             try:
                 loc = ip_to_city(ip)
                 new_city = loc.get("city", "未知")
-                n = db.query(IpRecord).filter(IpRecord.ip == ip, IpRecord.city_source != "manual").update({
+                n = db.query(IpRecord).filter(IpRecord.ip == ip).update({
                     "city": new_city, "city_source": loc.get("source", ""), "latitude": loc.get("lat"), "longitude": loc.get("lon"),
                 })
                 db.commit()

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Admin, Setting, TokenRevocation
 from auth import verify_password, hash_password, create_access_token, get_current_admin
+from services.ip_location import sane_city_label
 
 router = APIRouter(prefix="/api", tags=["auth"])
 
@@ -380,7 +381,7 @@ def put_geo_settings(data: GeoSettingsRequest, db: Session = Depends(get_db), _:
             bad.append(line)
             continue
         cidr, _, city = line.partition("=")
-        if not city.strip():
+        if not city.strip() or not sane_city_label(city.strip()):
             bad.append(line)
             continue
         try:
