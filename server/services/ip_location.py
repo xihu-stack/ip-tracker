@@ -1,3 +1,4 @@
+import gzip
 import ipaddress
 import json
 import time
@@ -33,6 +34,18 @@ def _decode_body(raw: bytes) -> str:
         return raw.decode("gb18030", errors="ignore")
 
 
+def _read_text(resp) -> str:
+    """读取响应并处理 gzip 压缩（个别 CDN 会强制压缩，urllib 不会自动解压，
+    压缩字节按 GB18030 强解会产生 'M' 之类的乱码碎片）。"""
+    raw = resp.read()
+    if (resp.headers.get("Content-Encoding") or "").lower() == "gzip":
+        try:
+            raw = gzip.decompress(raw)
+        except OSError:
+            pass
+    return _decode_body(raw)
+
+
 def _query_cip_cc(ip: str):
     """数据源 1：cip.cc，文本格式，免 key。返回 (province, city) 或 None。
 
@@ -44,7 +57,7 @@ def _query_cip_cc(ip: str):
         url = f"http://cip.cc/{ip}"
         req = urllib.request.Request(url, headers={"User-Agent": "curl/8.4.0"})
         with urllib.request.urlopen(req, timeout=5) as resp:
-            text = _decode_body(resp.read())
+            text = _read_text(resp)
     except Exception:
         # 网络错误 / 503 限流 / 超时等：交由后续数据源兜底
         return None
@@ -87,7 +100,7 @@ def _query_pconline(ip: str):
         url = f"https://whois.pconline.com.cn/ipJson.jsp?ip={ip}&json=true"
         req = urllib.request.Request(url, headers={"User-Agent": "IPTracker/1.0"})
         with urllib.request.urlopen(req, timeout=5) as resp:
-            text = _decode_body(resp.read())
+            text = _read_text(resp)
         data = json.loads(text)
         if data.get("err"):
             return None
@@ -109,7 +122,7 @@ def _query_ip_api_com(ip: str):
         url = f"http://ip-api.com/json/{ip}?lang=zh-CN&fields=status,regionName,city"
         req = urllib.request.Request(url, headers={"User-Agent": "IPTracker/1.0"})
         with urllib.request.urlopen(req, timeout=5) as resp:
-            data = json.loads(_decode_body(resp.read()))
+            data = json.loads(_read_text(resp))
         if data.get("status") != "success":
             return None
         province = _normalize(data.get("regionName") or "")

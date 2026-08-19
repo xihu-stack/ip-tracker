@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime, timedelta
 from ipaddress import ip_address
 from typing import Optional, Union
@@ -59,6 +60,10 @@ class ReportRequest(BaseModel):
 def report(data: ReportRequest, db: Session = Depends(get_db), x_report_token: Optional[str] = Header(default=None)):
     if REPORT_SECRET and x_report_token != REPORT_SECRET:
         raise HTTPException(status_code=403, detail="上报令牌无效")
+
+    # 客户端自带的城市仅作兜底：PowerShell 解码不可靠可能产生乱码，
+    # 只接受含中文的值（客户端用 lang=zh-CN 查询，正常值必含中文）
+    client_city = data.city if (data.city and re.search(r"[\u4e00-\u9fa5]", data.city)) else ""
     # 根据 hostname 查找或创建员工
     employee = db.query(Employee).filter(Employee.hostname == data.hostname).first()
     if not employee:
@@ -70,9 +75,9 @@ def report(data: ReportRequest, db: Session = Depends(get_db), x_report_token: O
     employee.last_seen_at = datetime.now()
 
     # 始终使用服务端查询（支持区级精度），客户端传来的仅作备用
-    city = data.city
-    latitude = data.lat
-    longitude = data.lon
+    city = client_city
+    latitude = data.lat if client_city else None
+    longitude = data.lon if client_city else None
 
     location = ip_to_city(data.ip)
     if location.get("city") and location["city"] != "未知":
