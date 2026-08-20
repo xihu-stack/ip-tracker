@@ -46,7 +46,7 @@
           </el-step>
           <el-step title="定时上报">
             <template #description>
-              计划任务以 SYSTEM 身份运行，每 10 分钟执行一次，获取公网 IP 和经纬度后上报到服务器
+              计划任务以 SYSTEM 身份运行，每 10 分钟执行一次，获取公网 IP 后上报（归属地由服务端多源解析，客户端不查询归属地）；上报失败自动重试一次
             </template>
           </el-step>
           <el-step title="IP 解析">
@@ -86,7 +86,7 @@
       <el-timeline>
         <el-timeline-item type="primary" :hollow="false">
           <b>确认配置</b>
-          <p class="step-desc">打开 <code>deploy.ps1</code>，搜索 <code>SERVER_URL</code> 确认为实际服务器地址（下方可选的 <code>REPORT_TOKEN</code> 为上报令牌，默认留空即可）</p>
+          <p class="step-desc">日常推送使用<b>分发版 deploy.dist.ps1</b>（已预填上报令牌，此文件不入 git 仓库，在维护人本机 client/ 目录下）；仓库里的 deploy.ps1 令牌为空，仅作模板。文件内上报地址已指向生产服务器，无需修改</p>
         </el-timeline-item>
         <el-timeline-item type="primary" :hollow="false">
           <b>创建软件包</b>
@@ -119,13 +119,30 @@
     <el-card style="margin-bottom: 16px">
       <template #header><b>卸载步骤（取消上报）</b></template>
       <el-timeline>
-        <el-timeline-item type="danger" :hollow="false">
-          <b>推送卸载脚本</b>
-          <p class="step-desc">通过 IP-guard 推送 <code>clean_all_fixed.bat</code>，命令行：<code>powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File clean_all_fixed.bat</code>，同样不勾选"以当前登录用户身份运行"</p>
+        <el-timeline-item type="primary" :hollow="false">
+          <b>创建软件包</b>
+          <p class="step-desc">IP-guard 控制台 → 软件分发 → 新建软件包，分发模式选择 <b>执行程序</b></p>
+        </el-timeline-item>
+        <el-timeline-item type="primary" :hollow="false">
+          <b>添加文件</b>
+          <p class="step-desc">选择 <code>client/clean_all_fixed.bat</code></p>
+        </el-timeline-item>
+        <el-timeline-item type="primary" :hollow="false">
+          <b>设置命令行</b>
+          <p class="step-desc">
+            <code style="word-break: break-all">powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File clean_all_fixed.bat</code>
+          </p>
+        </el-timeline-item>
+        <el-timeline-item type="primary" :hollow="false">
+          <b>运行模式</b>
+          <p class="step-desc"><b>不勾选</b>"以当前登录用户身份运行"（以 SYSTEM 身份执行，才能删掉 SYSTEM 级任务和目录）</p>
         </el-timeline-item>
         <el-timeline-item type="danger" :hollow="false">
-          <b>卸载内容</b>
-          <p class="step-desc">删除计划任务 <code>Company_IP_Tracker</code>、安装目录 <code>C:\ProgramData\Company_Network</code> 及所有日志文件</p>
+          <b>选择目标电脑 → 执行</b>
+        </el-timeline-item>
+        <el-timeline-item type="success" :hollow="false">
+          <b>卸载内容与收尾</b>
+          <p class="step-desc">删除计划任务 <code>Company_IP_Tracker</code>、安装目录 <code>C:\ProgramData\Company_Network</code> 及日志文件。卸载后该设备在后台显示离线，如需彻底移除，在员工列表中删除该设备</p>
         </el-timeline-item>
       </el-timeline>
     </el-card>
