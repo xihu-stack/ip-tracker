@@ -1,35 +1,44 @@
 @echo off
 :: ==============================================================================
-:: 脚本名称: clean_all_fixed.bat
-:: 适用环境: 适用于 IP-guard 软件分发 (SYSTEM 权限静默无感知运行)
-:: 功能描述: 连续强杀触发器避免时间差撞车，强制粉碎常驻任务与 C:\ProgramData 落地文件
+:: clean_all_fixed.bat v2 - uninstall IP tracker client
+:: Run via IP-guard software distribution as SYSTEM (silent).
+:: v2: kill processes locking the files before deleting, retry dir delete,
+::     print per-step result at the end. ASCII-only to avoid codepage issues.
 :: ==============================================================================
-chcp 65001 >nul 2>&1
 
-echo [1/3] 正在进入多轮强杀死循环触发器...
-:: 第一轮尝试终止当前可能正在运行的任务实例
+echo [1/4] Stop task instances...
+schtasks /End /TN "Company_IP_Tracker" /F >nul 2>&1
+ping 127.0.0.1 -n 3 >nul 2>&1
 schtasks /End /TN "Company_IP_Tracker" /F >nul 2>&1
 
-:: 极其关键：利用系统自带的 ping 实现 1.5 秒的微延时，完美错开高频触发器的到点撞车
+echo [2/4] Kill running report processes (identified by install path in command line)...
+powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and $_.Name -eq 'powershell.exe' -and $_.CommandLine -like '*Company_Network*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }" >nul 2>&1
 ping 127.0.0.1 -n 2 >nul 2>&1
 
-:: 第二轮强杀，确保彻底掐断僵尸进程
-schtasks /End /TN "Company_IP_Tracker" /F >nul 2>&1
-
-echo [2/3] 正在强制拔除计划任务外壳...
-:: 使用 /F 参数在系统底层直接粉碎任务，无视任何 Session 0 的隐形质询
+echo [3/4] Delete scheduled task...
 schtasks /Delete /TN "Company_IP_Tracker" /F >nul 2>&1
 
-echo [3/3] 正在粉碎本地常驻脚本目录及日志...
-:: 物理删除公共落地文件夹
+echo [4/4] Delete install directory with retry...
+rd /s /q "C:\ProgramData\Company_Network" >nul 2>&1
 if exist "C:\ProgramData\Company_Network" (
+    powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and $_.Name -eq 'powershell.exe' -and $_.CommandLine -like '*Company_Network*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }" >nul 2>&1
+    ping 127.0.0.1 -n 3 >nul 2>&1
+    rd /s /q "C:\ProgramData\Company_Network" >nul 2>&1
+)
+if exist "C:\ProgramData\Company_Network" (
+    ping 127.0.0.1 -n 4 >nul 2>&1
     rd /s /q "C:\ProgramData\Company_Network" >nul 2>&1
 )
 
-:: 清理残留的临时调试日志
-if exist "%TEMP%\ip_report.log" del /f /q "%TEMP%\ip_report.log" >nul 2>&1
-if exist "%TEMP%\deploy_debug.log" del /f /q "%TEMP%\deploy_debug.log" >nul 2>&1
-if exist "%TEMP%\uninstall_debug.log" del /f /q "%TEMP%\uninstall_debug.log" >nul 2>&1
+del /f /q "%TEMP%\ip_report.log" >nul 2>&1
+del /f /q "%TEMP%\deploy_debug.log" >nul 2>&1
+del /f /q "%TEMP%\uninstall_debug.log" >nul 2>&1
 
-echo === 卸载清理彻底完成 ===
+echo.
+echo ============ RESULT ============
+schtasks /query /TN "Company_IP_Tracker" >nul 2>&1
+if %errorlevel%==0 (echo [X] Task STILL EXISTS) else (echo [OK] Task deleted)
+if exist "C:\ProgramData\Company_Network" (echo [X] Directory STILL EXISTS - reboot and run again) else (echo [OK] Directory deleted)
+if exist "%TEMP%\ip_report.log" (echo [X] Log still exists) else (echo [OK] Logs deleted)
+echo ================================
 exit /b 0
