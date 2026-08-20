@@ -94,12 +94,12 @@
         </el-timeline-item>
         <el-timeline-item type="primary" :hollow="false">
           <b>添加文件</b>
-          <p class="step-desc">点击新增，选择 <code>deploy.ps1</code></p>
+          <p class="step-desc">点击新增，选择 <b>两个文件</b>：<code>launcher.vbs</code>（零窗口启动器）和 <code>deploy.dist.ps1</code>（分发版部署脚本）</p>
         </el-timeline-item>
         <el-timeline-item type="primary" :hollow="false">
           <b>设置命令行</b>
           <p class="step-desc">
-            <code style="word-break: break-all">powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File deploy.ps1</code>
+            <code style="word-break: break-all">wscript.exe launcher.vbs deploy.dist.ps1</code>
           </p>
         </el-timeline-item>
         <el-timeline-item type="primary" :hollow="false">
@@ -125,12 +125,12 @@
         </el-timeline-item>
         <el-timeline-item type="primary" :hollow="false">
           <b>添加文件</b>
-          <p class="step-desc">选择 <code>client/clean.ps1</code>（全程静默无窗口；旧版 clean_all_fixed.bat 已废弃，勿再使用）</p>
+          <p class="step-desc">选择 <b>两个文件</b>：<code>client/launcher.vbs</code> 和 <code>client/clean.ps1</code>（零窗口执行；旧版 clean_all_fixed.bat 已废弃，勿再使用）</p>
         </el-timeline-item>
         <el-timeline-item type="primary" :hollow="false">
           <b>设置命令行</b>
           <p class="step-desc">
-            <code style="word-break: break-all">powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File clean.ps1</code>
+            <code style="word-break: break-all">wscript.exe launcher.vbs clean.ps1</code>
           </p>
         </el-timeline-item>
         <el-timeline-item type="primary" :hollow="false">
