@@ -144,6 +144,15 @@
           <b>卸载内容与收尾</b>
           <p class="step-desc">删除计划任务 <code>Company_IP_Tracker</code>、安装目录 <code>C:\ProgramData\Company_Network</code> 及日志文件。卸载后该设备在后台显示离线，如需彻底移除，在员工列表中删除该设备</p>
         </el-timeline-item>
+        <el-timeline-item type="success" :hollow="false">
+          <b>验证卸载（在目标电脑上执行）</b>
+          <p class="step-desc">打开 PowerShell 粘贴执行：</p>
+          <pre class="cmd">$t = schtasks /query /TN Company_IP_Tracker 2>$null
+"计划任务已删: " + (-not $t)
+"安装目录已删: " + (-not (Test-Path C:\ProgramData\Company_Network))
+"日志文件已删: " + (-not (Test-Path $env:TEMP\ip_report.log))</pre>
+          <p class="step-desc">三行都显示 True 即卸载完成；任一 False 则对应项有残留。也可图形界面核对：任务计划程序里无 Company_IP_Tracker、资源管理器无 Company_Network 目录</p>
+        </el-timeline-item>
       </el-timeline>
     </el-card>
 
