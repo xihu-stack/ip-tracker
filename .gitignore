@@ -33,3 +33,6 @@ Thumbs.db
 
 # 环境变量文件（密钥不入库）
 .env
+
+# 分发版客户端（含真实上报令牌，不入库）
+client/deploy.dist.ps1
