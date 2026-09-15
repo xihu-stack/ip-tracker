@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Integer, String, DateTime, Float, ForeignKey, Index
+from sqlalchemy import Boolean, Integer, String, DateTime, Float, ForeignKey, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
@@ -40,6 +40,11 @@ class Employee(Base):
     base_city: Mapped[str] = mapped_column(String(128), default="")   # 驻地城市（用于异地办公判断）
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    # 客户端画像（每次上报刷新）：版本号 / 是否携带上报令牌 / 令牌指纹（sha256 前 8 位，
+    # 用于发现多台机器推了不同令牌的情况；只存指纹不存明文）
+    last_cli: Mapped[str] = mapped_column(String(16), default="")
+    last_tokened: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_token_hash: Mapped[str] = mapped_column(String(16), default="")
 
     records: Mapped[list["IpRecord"]] = relationship("IpRecord", back_populates="employee", order_by="IpRecord.reported_at.desc()")
 

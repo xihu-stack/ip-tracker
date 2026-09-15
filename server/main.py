@@ -32,6 +32,21 @@ async def lifespan(app: FastAPI):
                 "UPDATE ip_records SET city_source = '' WHERE city_source IS NULL",
                 "ip_records.city_source",
             ),
+            (
+                "ALTER TABLE employees ADD COLUMN last_cli VARCHAR(16) DEFAULT ''",
+                "UPDATE employees SET last_cli = '' WHERE last_cli IS NULL",
+                "employees.last_cli",
+            ),
+            (
+                "ALTER TABLE employees ADD COLUMN last_tokened BOOLEAN DEFAULT 0",
+                "UPDATE employees SET last_tokened = 0 WHERE last_tokened IS NULL",
+                "employees.last_tokened",
+            ),
+            (
+                "ALTER TABLE employees ADD COLUMN last_token_hash VARCHAR(16) DEFAULT ''",
+                "UPDATE employees SET last_token_hash = '' WHERE last_token_hash IS NULL",
+                "employees.last_token_hash",
+            ),
         ):
             try:
                 conn.execute(sqlalchemy.text(ddl))

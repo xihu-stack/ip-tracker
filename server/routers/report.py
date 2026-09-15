@@ -1,3 +1,4 @@
+import hashlib
 import os
 from datetime import datetime, timedelta
 from ipaddress import ip_address
@@ -23,6 +24,7 @@ REPORT_SECRET = os.getenv("IP_TRACKER_REPORT_SECRET", "").strip()
 class ReportRequest(BaseModel):
     hostname: str
     ip: str
+    cli: Optional[str] = ""   # 客户端版本标识（v2+ 上报，v1 无此字段）
     city: Optional[str] = ""
     lat: Optional[Union[float, str]] = None
     lon: Optional[Union[float, str]] = None
@@ -34,6 +36,11 @@ class ReportRequest(BaseModel):
         if not v or len(v) > 128:
             raise ValueError("hostname 不能为空且不超过 128 字符")
         return v
+
+    @field_validator("cli")
+    @classmethod
+    def check_cli(cls, v):
+        return (v or "").strip()[:16]
 
     @field_validator("ip")
     @classmethod
@@ -80,8 +87,11 @@ def report(data: ReportRequest, db: Session = Depends(get_db), x_report_token: O
         db.add(employee)
         db.flush()
 
-    # 每次上报都更新 last_seen_at（用于在线状态判断）
+    # 每次上报都更新 last_seen_at（用于在线状态判断）和客户端画像（版本/令牌指纹）
     employee.last_seen_at = datetime.now()
+    employee.last_cli = data.cli
+    employee.last_tokened = bool(x_report_token)
+    employee.last_token_hash = hashlib.sha256(x_report_token.encode()).hexdigest()[:8] if x_report_token else ""
 
     # 始终使用服务端查询（支持区级精度），客户端传来的仅作备用
     city = client_city

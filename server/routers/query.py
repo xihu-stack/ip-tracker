@@ -159,10 +159,26 @@ def list_employees(
             "latest_city_source": (latest.city_source if latest else "") or "",
             "latest_time": emp.last_seen_at.strftime("%Y-%m-%d %H:%M:%S") if emp.last_seen_at else (latest.reported_at.strftime("%Y-%m-%d %H:%M:%S") if latest else "-"),
             "is_online": bool(emp.last_seen_at and emp.last_seen_at >= threshold),
-            "is_stale": bool(emp.last_seen_at and emp.last_seen_at < stale_threshold)
+            "is_stale": bool(emp.last_seen_at and emp.last_seen_at < stale_threshold),
+            "last_cli": emp.last_cli or "",
+            "last_tokened": bool(emp.last_tokened),
+            "last_token_hash": emp.last_token_hash or "",
         })
 
-    return {"total": total, "page": page, "page_size": page_size, "data": result}
+    # 令牌覆盖率（全量在线员工，不限于当前页）：决定能否开启服务端上报校验
+    online_rows = db.query(Employee.hostname, Employee.last_tokened, Employee.last_token_hash).filter(
+        Employee.last_seen_at >= threshold
+    ).all()
+    notoken = sorted(r.hostname for r in online_rows if not r.last_tokened)
+    token_hashes = sorted({r.last_token_hash for r in online_rows if r.last_tokened})
+    token_summary = {
+        "online": len(online_rows),
+        "tokened": len(online_rows) - len(notoken),
+        "notoken": notoken,
+        "token_hashes": token_hashes,
+    }
+
+    return {"total": total, "page": page, "page_size": page_size, "data": result, "token_summary": token_summary}
 
 
 def _parse_date(value: str, field: str) -> datetime:

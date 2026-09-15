@@ -8,6 +8,26 @@
       <el-tag effect="plain" round size="large">共 {{ total }} 台设备</el-tag>
     </div>
     <el-card>
+      <el-alert
+        v-if="tokenSummary && tokenSummary.online > 0"
+        :type="tokenSummary.notoken.length ? 'warning' : 'success'"
+        :closable="false"
+        class="token-summary"
+        show-icon
+      >
+        <template #title>
+          上报令牌覆盖：在线 {{ tokenSummary.online }} 台，{{ tokenSummary.tokened }} 台已带令牌<template v-if="tokenSummary.notoken.length">，缺 {{ tokenSummary.notoken.length }} 台：{{ tokenSummary.notoken.slice(0, 8).join('、') }}{{ tokenSummary.notoken.length > 8 ? ' 等' : '' }}</template>
+        </template>
+        <template v-if="tokenSummary.notoken.length">
+          未带令牌的客户端在服务端开启校验后会停止上报（页面显示离线）。全部覆盖后再开启校验（见运维手册 §3 上报校验）。
+        </template>
+        <template v-else-if="tokenSummary.token_hashes.length > 1">
+          注意：在线机器存在 {{ tokenSummary.token_hashes.length }} 种不同令牌（指纹 {{ tokenSummary.token_hashes.join(' / ') }}）——说明有机器推过不同版本的令牌，开启校验前需统一。
+        </template>
+        <template v-else>
+          令牌指纹一致（{{ tokenSummary.token_hashes[0] || '-' }}），可以在服务端开启上报校验（IP_TRACKER_REPORT_SECRET）。
+        </template>
+      </el-alert>
       <div class="toolbar">
         <el-input v-model="search" placeholder="搜索主机名或姓名" style="width: 300px" clearable @clear="handleSearch" @keyup.enter="handleSearch">
           <template #prefix><el-icon><Search /></el-icon></template>
@@ -37,6 +57,20 @@
           </template>
         </el-table-column>
         <el-table-column prop="latest_time" label="最后上报时间" />
+        <el-table-column label="客户端" width="130">
+          <template #default="{ row }">
+            <template v-if="row.last_cli || row.latest_time !== '-'">
+              <span style="margin-right:4px">{{ row.last_cli || 'v1' }}</span>
+              <el-tag
+                v-if="row.latest_time !== '-'"
+                :type="row.last_tokened ? 'success' : 'danger'"
+                size="small"
+                effect="plain"
+              >{{ row.last_tokened ? '令牌✓' : '无令牌' }}</el-tag>
+            </template>
+            <span v-else class="text-muted">-</span>
+          </template>
+        </el-table-column>
         <el-table-column label="状态" width="90">
           <template #default="{ row }">
             <el-tag v-if="row.is_online" type="success" size="small">在线</el-tag>
@@ -111,6 +145,7 @@ const search = ref('')
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
+const tokenSummary = ref(null)
 
 const editVisible = ref(false)
 const editRow = ref(null)
@@ -124,6 +159,7 @@ async function loadData() {
     const res = await getEmployees({ search: search.value, page: page.value, page_size: pageSize.value })
     employees.value = res.data.data
     total.value = res.data.total
+    tokenSummary.value = res.data.token_summary || null
   } catch {
   } finally {
     loading.value = false
@@ -189,6 +225,9 @@ onMounted(loadData)
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 16px;
+}
+.token-summary {
+  margin-bottom: 12px;
 }
 .pagination-wrap {
   display: flex;
