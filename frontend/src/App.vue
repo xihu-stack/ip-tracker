@@ -130,19 +130,44 @@ function passwordOk(p) {
   return p.length >= 8 && /[A-Za-z]/.test(p) && /\d/.test(p)
 }
 
+// id_token 是 JWT：本地解析过期时间。认证中心对"无效/过期的 id_token_hint"直接返回 400
+// （SSO 域名切换后旧令牌 issuer 失效即触发），所以过期或解析失败的 hint 不能带上去登出。
+// 不带 hint 也能完成全局登出并按回跳地址返回（认证中心行为如此，实测确认）。
+function idTokenUsable(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return typeof payload.exp === 'number' && payload.exp * 1000 > Date.now()
+  } catch {
+    return false
+  }
+}
+
+// 本系统自己的 token 也是 JWT，payload 里有 login: "sso" | "local"，用于区分会话类型
+function currentLoginType() {
+  try {
+    const payload = JSON.parse(atob((localStorage.getItem('token') || '').split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return payload.login || ''
+  } catch {
+    return ''
+  }
+}
+
 function handleLogout() {
-  const idToken = localStorage.getItem('sso_id_token') || ''
+  // 只有 SSO 会话才跳门户全局登出；本地密码账号退出不动门户会话
+  const isSsoSession = currentLoginType() === 'sso'
+  let idToken = isSsoSession ? (localStorage.getItem('sso_id_token') || '') : ''
+  if (!idTokenUsable(idToken)) idToken = ''
   // 记住"已明确退出"：登录页不再自动跳 SSO，直到用户主动点重新登录。
   // 这是防循环登录的兜底——即使门户全局会话没被清掉，本系统也不会再自动带用户登录
   localStorage.setItem('logged_out', '1')
   localStorage.removeItem('token')
   localStorage.removeItem('sso_id_token')
-  if (appSSOLogoutUrl.value && idToken) {
-    // SSO 登录的会话：带 id_token_hint 跳门户全局登出（尽力而为，失败也不影响上面的兜底）
+  if (appSSOLogoutUrl.value && isSsoSession) {
+    // SSO 登录的会话：跳门户全局登出（尽力而为，失败也不影响上面的兜底）
     // post_logout_redirect_uri 与认证中心登记的"OIDC 登出回跳地址"精确匹配时，登出后回到本系统登录页；
     // 未登记则停在门户登录页（上方 logged_out 标记已种下，两种情况都不会循环登录）
     const params = new URLSearchParams()
-    params.set('id_token_hint', idToken)
+    if (idToken) params.set('id_token_hint', idToken)
     params.set('post_logout_redirect_uri', window.location.origin + '/login')
     window.location.href = appSSOLogoutUrl.value + (appSSOLogoutUrl.value.includes('?') ? '&' : '?') + params.toString()
   } else {
