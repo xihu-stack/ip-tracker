@@ -50,6 +50,17 @@
             :placeholder="hasSecret ? '已保存（不修改请留空）' : 'Client Secret'"
           />
         </el-form-item>
+        <el-form-item label="固定回调地址">
+          <el-input
+            v-model="form.sso_redirect_uri"
+            placeholder="留空 = 按访问地址自动推导（见下方说明）"
+          />
+          <div class="field-hint">
+            认证中心要求回调地址与注册值<b>一字不差</b>。留空时按当前访问地址自动推导——用 IP 和用域名访问会发出不同回调，
+            一旦与注册的访问方式不一致就会被拒。建议固定填写认证中心注册的那个完整地址（如 http://iptracker.huashen.bio:8000/api/auth/callback），
+            填写后无论用什么方式访问都发同一个回调
+          </div>
+        </el-form-item>
         <el-form-item label="Scope">
           <el-input v-model="form.sso_scope" placeholder="openid profile email" />
         </el-form-item>
@@ -70,7 +81,7 @@
         </el-form-item>
 
         <el-form-item label="全局登出地址">
-          <el-input v-model="form.sso_logout_url" placeholder="http://10.4.128.19:8080/connect/logout" />
+          <el-input v-model="form.sso_logout_url" placeholder="https://sso.huashen.bio/connect/logout" />
           <div class="field-hint">认证中心的 OIDC 登出端点（end_session_endpoint）。配置后本系统"退出登录"会同时登出统一门户，避免退出后被门户会话自动重新登录；留空则退出仅清除本系统会话</div>
         </el-form-item>
 
@@ -170,6 +181,7 @@ const form = ref({
   sso_client_secret: '',
   sso_scope: 'openid profile email',
   sso_username_field: '',
+  sso_redirect_uri: '',
   sso_logout_url: '',
   sso_allowed_users: '',
   sso_allowed_domains: '',
@@ -180,7 +192,7 @@ const saving = ref(false)
 const testing = ref(false)
 const testResult = ref(null)
 
-const callbackUrl = computed(() => window.location.origin + '/api/auth/callback')
+const callbackUrl = computed(() => form.value.sso_redirect_uri || window.location.origin + '/api/auth/callback')
 
 async function load() {
   try {

@@ -29,7 +29,7 @@ router = APIRouter(prefix="/api", tags=["auth"])
 SSO_SETTING_KEYS = (
     "sso_enabled", "sso_auth_url", "sso_token_url", "sso_userinfo_url",
     "sso_client_id", "sso_client_secret", "sso_scope", "sso_username_field",
-    "sso_allowed_users", "sso_allowed_domains",
+    "sso_redirect_uri", "sso_allowed_users", "sso_allowed_domains",
 )
 
 
@@ -89,7 +89,7 @@ def get_oauth(db: Session):
             "token_url": rows.get("sso_token_url", ""),
             "userinfo_url": rows.get("sso_userinfo_url", ""),
             "scope": rows.get("sso_scope") or "openid profile email",
-            "redirect_uri": "",
+            "redirect_uri": rows.get("sso_redirect_uri", ""),
             "logout_url": rows.get("sso_logout_url", ""),
             "username_field": rows.get("sso_username_field", ""),
         }
@@ -261,6 +261,7 @@ class SsoSettingsRequest(BaseModel):
     sso_client_secret: str = ""     # 留空 = 保留已保存的密钥
     sso_scope: str = "openid profile email"
     sso_username_field: str = ""
+    sso_redirect_uri: str = ""      # 固定回调地址；留空 = 按访问地址动态推导（IP/域名访问会得到不同回调）
     sso_logout_url: str = ""    # 全局登出端点（OIDC end_session_endpoint），配置后"退出登录"会同时登出统一门户
     sso_allowed_users: str = ""     # 用户名白名单，逗号/换行分隔
     sso_allowed_domains: str = ""   # 邮箱后缀白名单，逗号分隔
@@ -291,6 +292,7 @@ def get_sso_settings(db: Session = Depends(get_db), _: Admin = Depends(get_curre
         "sso_has_secret": bool(rows.get("sso_client_secret")),
         "sso_scope": rows.get("sso_scope", "openid profile email"),
         "sso_username_field": rows.get("sso_username_field", ""),
+        "sso_redirect_uri": rows.get("sso_redirect_uri", ""),
         "sso_logout_url": rows.get("sso_logout_url", ""),
         "sso_allowed_users": rows.get("sso_allowed_users", ""),
         "sso_allowed_domains": rows.get("sso_allowed_domains", ""),
@@ -316,6 +318,7 @@ def put_sso_settings(data: SsoSettingsRequest, db: Session = Depends(get_db), _:
         "sso_client_id": data.sso_client_id.strip(),
         "sso_scope": data.sso_scope.strip() or "openid profile email",
         "sso_username_field": data.sso_username_field.strip(),
+        "sso_redirect_uri": data.sso_redirect_uri.strip(),
         "sso_logout_url": data.sso_logout_url.strip(),
         "sso_allowed_users": data.sso_allowed_users.strip(),
         "sso_allowed_domains": data.sso_allowed_domains.strip(),

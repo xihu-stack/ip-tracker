@@ -139,8 +139,11 @@ function handleLogout() {
   localStorage.removeItem('sso_id_token')
   if (appSSOLogoutUrl.value && idToken) {
     // SSO 登录的会话：带 id_token_hint 跳门户全局登出（尽力而为，失败也不影响上面的兜底）
+    // post_logout_redirect_uri 与认证中心登记的"OIDC 登出回跳地址"精确匹配时，登出后回到本系统登录页；
+    // 未登记则停在门户登录页（上方 logged_out 标记已种下，两种情况都不会循环登录）
     const params = new URLSearchParams()
     params.set('id_token_hint', idToken)
+    params.set('post_logout_redirect_uri', window.location.origin + '/login')
     window.location.href = appSSOLogoutUrl.value + (appSSOLogoutUrl.value.includes('?') ? '&' : '?') + params.toString()
   } else {
     router.push('/login?stay=1')
