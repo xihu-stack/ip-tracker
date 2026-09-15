@@ -5,6 +5,7 @@ from typing import Optional, Union
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, field_validator
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -63,8 +64,17 @@ def report(data: ReportRequest, db: Session = Depends(get_db), x_report_token: O
     # 客户端自带的城市仅作兜底：PowerShell 解码不可靠可能产生乱码，
     # 统一走合法性校验（全中文/全英文城市名，乱码碎片直接丢弃）
     client_city = data.city if (data.city and sane_city_label(data.city)) else ""
-    # 根据 hostname 查找或创建员工
-    employee = db.query(Employee).filter(Employee.hostname == data.hostname).first()
+    # 根据 hostname 查找或创建员工（Windows 主机名不区分大小写，统一按小写比较）
+    employee = db.query(Employee).filter(func.lower(Employee.hostname) == data.hostname.lower()).first()
+    if not employee and len(data.hostname) > 15:
+        # v2.0 及更早客户端用 $env:COMPUTERNAME（NetBIOS 名）上报，15 字符上限会把长主机名截断；
+        # v2.1+ 改报 DNS 全名。前 15 位恰好等于旧截断名的存量员工自动改名归并，历史记录无损延续
+        legacy = db.query(Employee).filter(func.lower(Employee.hostname) == data.hostname[:15].lower()).first()
+        if legacy:
+            legacy.hostname = data.hostname
+            employee = legacy
+            db.flush()
+            print(f"[report] 长主机名自动归并: {data.hostname[:15]} -> {data.hostname}")
     if not employee:
         employee = Employee(hostname=data.hostname)
         db.add(employee)

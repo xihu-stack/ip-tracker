@@ -1,12 +1,14 @@
 ﻿# ==============================================================================
-# 脚本名称: deploy.ps1  (客户端 v2.0)
+# 脚本名称: deploy.ps1  (客户端 v2.1)
 # 变更说明（相对 v1 已部署版本）:
 #   1. 去掉客户端 ip-api.com 归属地查询——服务端三源交叉解析更强，且不再有境外请求和乱码来源
-#   2. 上报带版本标识（body.cli = 2.0 / User-Agent），便于统计推送覆盖率
+#   2. 上报带版本标识（body.cli / User-Agent），便于统计推送覆盖率
 #   3. 日志自动轮转（超过 1MB 重新开始），不再无限增长
 #   4. 上报失败自动重试一次
 #   5. 支持上报令牌（$REPORT_TOKEN，留空=与当前服务器行为一致）
-# 兼容性: 任务名/安装目录与 v1 相同，重推即原地升级，无需卸载
+#   6. v2.1 修复长主机名截断：$env:COMPUTERNAME 是 NetBIOS 名（15 字符上限），
+#      长主机名被 Windows 截断；改用 DNS 主机名取全名（服务端会把旧截断名自动归并）
+# 兼容性: 任务名/安装目录与 v1/v2.0 相同，重推即原地升级，无需卸载
 # ==============================================================================
 
 $DEPLOY_LOG = "$env:TEMP\deploy_debug.log"
@@ -25,7 +27,7 @@ $SERVER_URL = "http://iptracker.huashen.bio:9000/api/report"
 # 上报令牌（可选）：与服务器环境变量 IP_TRACKER_REPORT_SECRET 配合使用。
 # 留空 = 不带令牌，兼容当前未开启校验的服务器；填入后需在服务器同步配置才生效
 $REPORT_TOKEN = ""
-$CLIENT_VERSION = "2.0"
+$CLIENT_VERSION = "2.1"
 $TASK_NAME = "Company_IP_Tracker"
 
 # 统一使用标准的公共本地路径，避免 SYSTEM 账户与普通用户 AppData 错位
@@ -49,8 +51,13 @@ $lines = @(
     '        [System.IO.File]::AppendAllText($LOG_FILE, "$timestamp $msg`r`n", [System.Text.Encoding]::UTF8)'
     '    } catch {}'
     '}'
-    'try {'
-    '    $hostname = $env:COMPUTERNAME'
+'try {'
+'    $hostname = $env:COMPUTERNAME'
+'    try {'
+'        # COMPUTERNAME 是 NetBIOS 名（15 字符上限），长主机名会被 Windows 截断；DNS 主机名是全名'
+'        $dnsName = [System.Net.Dns]::GetHostName()'
+'        if ($dnsName) { $hostname = ($dnsName.Split(''.''))[0].ToUpper() }'
+'    } catch {}'
     '    $ip = $null'
     '    # 国内 IP 查询源，SD-WAN 环境下国内流量不走海外出口'
     '    $ipSources = @("http://members.3322.org/dyndns/getip", "http://ip.3322.net", "https://myip.ipip.net")'
